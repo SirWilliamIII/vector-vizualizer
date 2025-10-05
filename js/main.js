@@ -9,7 +9,7 @@ import { updateInfoPanel, showStatus, clearStatus } from './ui.js';
 
 // Scene setup
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a1a);
+scene.background = new THREE.Color(0x0a0e27);
 
 const camera = new THREE.PerspectiveCamera(
     75,
@@ -19,9 +19,10 @@ const camera = new THREE.PerspectiveCamera(
 );
 camera.position.set(8, 8, 8);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 document.getElementById('canvas-container').appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -33,11 +34,13 @@ let selectedVectors = [];
 const vectorObjects = {};
 const labelSprites = {};
 const vectorMeshes = [];
+const labelSpritesList = [];
 const connectionLines = [];
+const vectorAnimations = new Map(); // Track ongoing animations
 
 // Add grid
-const gridHelper = new THREE.GridHelper(20, 20, 0x00d4ff, 0x1a1a2e);
-gridHelper.material.opacity = 0.2;
+const gridHelper = new THREE.GridHelper(20, 20, 0x3a4466, 0x1a1e33);
+gridHelper.material.opacity = 0.15;
 gridHelper.material.transparent = true;
 scene.add(gridHelper);
 
@@ -74,17 +77,27 @@ Object.entries(vectors).forEach(([name, data]) => {
     const label = createTextLabel(name, data.color);
     const pos = data.coords;
     label.position.set(pos[0] * 1.1, pos[1] * 1.1, pos[2] * 1.1);
+    label.userData = { name, coords: data.coords, color: data.color };
     scene.add(label);
     labelSprites[name] = label;
+    labelSpritesList.push(label);
 });
 
-// Lighting
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+// Enhanced lighting for StandardMaterial
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
 
-const pointLight = new THREE.PointLight(0x00d4ff, 1, 100);
-pointLight.position.set(10, 10, 10);
-scene.add(pointLight);
+const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+mainLight.position.set(5, 10, 7);
+scene.add(mainLight);
+
+const fillLight = new THREE.DirectionalLight(0x7a8cb8, 0.3);
+fillLight.position.set(-5, 3, -5);
+scene.add(fillLight);
+
+const rimLight = new THREE.PointLight(0xa8b5d1, 0.4, 50);
+rimLight.position.set(0, 8, -8);
+scene.add(rimLight);
 
 // Raycaster for interaction
 const raycaster = new THREE.Raycaster();
@@ -95,22 +108,60 @@ function onMouseMove(event) {
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(vectorMeshes);
+    const meshIntersects = raycaster.intersectObjects(vectorMeshes);
+    const labelIntersects = raycaster.intersectObjects(labelSpritesList);
     
+    // Reset all meshes to default state
     vectorMeshes.forEach(mesh => {
         if (selectedVectors.includes(mesh.userData.name)) return;
-        mesh.material.emissiveIntensity = 0.3;
-        mesh.material.opacity = 0.9;
+        mesh.material.emissiveIntensity = 0.15;
+        mesh.material.opacity = 0.95;
         mesh.scale.set(1, 1, 1);
     });
     
-    if (intersects.length > 0) {
-        const mesh = intersects[0].object;
-        if (!selectedVectors.includes(mesh.userData.name)) {
-            mesh.material.emissiveIntensity = 0.7;
+    // Reset all labels to default state
+    labelSpritesList.forEach(label => {
+        if (selectedVectors.includes(label.userData.name)) return;
+        label.material.opacity = 0.95;
+        label.scale.set(2, 1, 1);
+    });
+    
+    // Handle mesh hover
+    if (meshIntersects.length > 0) {
+        const mesh = meshIntersects[0].object;
+        const name = mesh.userData.name;
+        if (!selectedVectors.includes(name)) {
+            mesh.material.emissiveIntensity = 0.5;
             mesh.material.opacity = 1;
             mesh.scale.set(1.2, 1.2, 1.2);
+            // Also highlight the label
+            if (labelSprites[name]) {
+                labelSprites[name].material.opacity = 1;
+                labelSprites[name].scale.set(2.1, 1.05, 1);
+            }
         }
+        document.body.style.cursor = 'pointer';
+    } 
+    // Handle label hover
+    else if (labelIntersects.length > 0) {
+        const label = labelIntersects[0].object;
+        const name = label.userData.name;
+        if (!selectedVectors.includes(name)) {
+            label.material.opacity = 1;
+            label.scale.set(2.1, 1.05, 1);
+            // Also highlight the vector mesh
+            const arrow = vectorObjects[name];
+            if (arrow) {
+                arrow.children.forEach(mesh => {
+                    mesh.material.emissiveIntensity = 0.5;
+                    mesh.material.opacity = 1;
+                    mesh.scale.set(1.2, 1.2, 1.2);
+                });
+            }
+        }
+        document.body.style.cursor = 'pointer';
+    } else {
+        document.body.style.cursor = 'default';
     }
 }
 
@@ -119,11 +170,20 @@ function onMouseClick(event) {
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(vectorMeshes);
+    const meshIntersects = raycaster.intersectObjects(vectorMeshes);
+    const labelIntersects = raycaster.intersectObjects(labelSpritesList);
     
-    if (intersects.length > 0) {
-        const name = intersects[0].object.userData.name;
-        
+    let name = null;
+    
+    // Check mesh intersections first, then label intersections
+    if (meshIntersects.length > 0) {
+        name = meshIntersects[0].object.userData.name;
+    } else if (labelIntersects.length > 0) {
+        name = labelIntersects[0].object.userData.name;
+    }
+    
+    if (name) {
+        // Clicked on a vector or label
         if (selectedVectors.includes(name)) {
             selectedVectors = selectedVectors.filter(v => v !== name);
         } else {
@@ -137,17 +197,145 @@ function onMouseClick(event) {
     }
 }
 
+function animateVector(mesh, targetProps, duration = 400) {
+    const startTime = Date.now();
+    const startEmissive = mesh.material.emissiveIntensity;
+    const startOpacity = mesh.material.opacity;
+    const startScale = mesh.scale.x;
+    
+    const animationId = mesh.uuid;
+    
+    function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2; // easeInOutQuad
+        
+        mesh.material.emissiveIntensity = startEmissive + (targetProps.emissiveIntensity - startEmissive) * eased;
+        mesh.material.opacity = startOpacity + (targetProps.opacity - startOpacity) * eased;
+        const targetScale = targetProps.scale;
+        mesh.scale.setScalar(startScale + (targetScale - startScale) * eased);
+        
+        if (progress < 1) {
+            vectorAnimations.set(animationId, requestAnimationFrame(animate));
+        } else {
+            vectorAnimations.delete(animationId);
+            if (targetProps.visible === false) {
+                mesh.visible = false;
+            }
+        }
+    }
+    
+    // Cancel existing animation
+    if (vectorAnimations.has(animationId)) {
+        cancelAnimationFrame(vectorAnimations.get(animationId));
+    }
+    
+    mesh.visible = true; // Always visible during animation
+    vectorAnimations.set(animationId, requestAnimationFrame(animate));
+}
+
 function updateSelection() {
+    const hasSelection = selectedVectors.length > 0;
+    const twoSelected = selectedVectors.length === 2;
+    
     vectorMeshes.forEach(mesh => {
         if (selectedVectors.includes(mesh.userData.name)) {
-            mesh.material.emissiveIntensity = 0.8;
-            mesh.material.opacity = 1;
-            mesh.scale.set(1.3, 1.3, 1.3);
+            // Selected vectors: bright and prominent
+            animateVector(mesh, {
+                emissiveIntensity: 1.2,
+                opacity: 1,
+                scale: 1.6,
+                visible: true
+            });
+        } else if (twoSelected) {
+            // Hide all other vectors when 2 are selected
+            animateVector(mesh, {
+                emissiveIntensity: 0.02,
+                opacity: 0,
+                scale: 0.5,
+                visible: false
+            }, 300);
+        } else if (hasSelection) {
+            // Unselected when something is selected: very faded
+            animateVector(mesh, {
+                emissiveIntensity: 0.02,
+                opacity: 0.25,
+                scale: 0.7,
+                visible: true
+            });
         } else {
-            mesh.material.emissiveIntensity = 0.3;
-            mesh.material.opacity = 0.9;
-            mesh.scale.set(1, 1, 1);
+            // Nothing selected: normal state
+            animateVector(mesh, {
+                emissiveIntensity: 0.15,
+                opacity: 0.95,
+                scale: 1,
+                visible: true
+            });
         }
+    });
+    
+    labelSpritesList.forEach(label => {
+        const startOpacity = label.material.opacity;
+        const startScaleX = label.scale.x;
+        const startScaleY = label.scale.y;
+        
+        let targetOpacity, targetScaleX, targetScaleY, targetVisible;
+        
+        if (selectedVectors.includes(label.userData.name)) {
+            targetOpacity = 1;
+            targetScaleX = 2.3;
+            targetScaleY = 1.15;
+            targetVisible = true;
+        } else if (twoSelected) {
+            targetOpacity = 0;
+            targetScaleX = 1.6;
+            targetScaleY = 0.8;
+            targetVisible = false;
+        } else if (hasSelection) {
+            targetOpacity = 0.3;
+            targetScaleX = 1.6;
+            targetScaleY = 0.8;
+            targetVisible = true;
+        } else {
+            targetOpacity = 0.95;
+            targetScaleX = 2;
+            targetScaleY = 1;
+            targetVisible = true;
+        }
+        
+        // Animate labels
+        const duration = 400;
+        const startTime = Date.now();
+        const animationId = `label-${label.uuid}`;
+        
+        function animate() {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            
+            label.material.opacity = startOpacity + (targetOpacity - startOpacity) * eased;
+            label.scale.set(
+                startScaleX + (targetScaleX - startScaleX) * eased,
+                startScaleY + (targetScaleY - startScaleY) * eased,
+                1
+            );
+            
+            if (progress < 1) {
+                vectorAnimations.set(animationId, requestAnimationFrame(animate));
+            } else {
+                vectorAnimations.delete(animationId);
+                if (!targetVisible) {
+                    label.visible = false;
+                }
+            }
+        }
+        
+        if (vectorAnimations.has(animationId)) {
+            cancelAnimationFrame(vectorAnimations.get(animationId));
+        }
+        
+        label.visible = true;
+        vectorAnimations.set(animationId, requestAnimationFrame(animate));
     });
     
     clearConnectionLines();
@@ -161,9 +349,21 @@ function updateSelection() {
         const line = createConnectionLine(coords1, coords2, color);
         scene.add(line);
         connectionLines.push(line);
+        
+        // Auto-focus camera on the two selected vectors
+        focusCameraOnVectors(coords1, coords2);
     }
     
     updateInfoPanel(selectedVectors);
+    
+    // Wire up close button if it exists (when 2 vectors are selected)
+    const closeBtn = document.getElementById('close-comparison');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            selectedVectors = [];
+            updateSelection();
+        });
+    }
 }
 
 function clearConnectionLines() {
@@ -171,8 +371,65 @@ function clearConnectionLines() {
     connectionLines.length = 0;
 }
 
+function focusCameraOnVectors(coords1, coords2) {
+    // Calculate midpoint between vectors
+    const midpoint = new THREE.Vector3(
+        (coords1[0] + coords2[0]) / 2,
+        (coords1[1] + coords2[1]) / 2,
+        (coords1[2] + coords2[2]) / 2
+    );
+    
+    // Calculate distance between vectors
+    const vec1 = new THREE.Vector3(...coords1);
+    const vec2 = new THREE.Vector3(...coords2);
+    const distance = vec1.distanceTo(vec2);
+    
+    // Optimal camera distance (factor of 2.5 gives nice framing)
+    const cameraDistance = Math.max(distance * 2.5, 8);
+    
+    // Current camera direction from center
+    const currentPos = camera.position.clone();
+    const currentDir = currentPos.normalize();
+    
+    // New camera position - same direction but adjusted distance from midpoint
+    const targetPos = currentDir.multiplyScalar(cameraDistance).add(midpoint);
+    
+    // Animate camera movement
+    const startPos = camera.position.clone();
+    const startTarget = controls.target.clone();
+    const duration = 800;
+    const startTime = Date.now();
+    
+    function animateCamera() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Smooth easing
+        const eased = progress < 0.5 
+            ? 4 * progress * progress * progress 
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        
+        camera.position.lerpVectors(startPos, targetPos, eased);
+        controls.target.lerpVectors(startTarget, midpoint, eased);
+        controls.update();
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateCamera);
+        }
+    }
+    
+    animateCamera();
+}
+
 window.addEventListener('mousemove', onMouseMove);
 window.addEventListener('click', onMouseClick);
+
+// Keyboard shortcuts
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && selectedVectors.length > 0) {
+        selectedVectors = [];
+        updateSelection();
+    }
+});
 
 // Control functions
 window.resetView = function() {
@@ -185,9 +442,13 @@ window.clearSelection = function() {
     selectedVectors = [];
     clearConnectionLines();
     vectorMeshes.forEach(mesh => {
-        mesh.material.emissiveIntensity = 0.3;
-        mesh.material.opacity = 0.9;
+        mesh.material.emissiveIntensity = 0.15;
+        mesh.material.opacity = 0.95;
         mesh.scale.set(1, 1, 1);
+    });
+    labelSpritesList.forEach(label => {
+        label.material.opacity = 0.95;
+        label.scale.set(2, 1, 1);
     });
     updateInfoPanel(selectedVectors);
 };
@@ -262,8 +523,10 @@ window.addCustomVector = async function() {
         const label = createTextLabel(word, data.color);
         const pos = data.coords;
         label.position.set(pos[0] * 1.1, pos[1] * 1.1, pos[2] * 1.1);
+        label.userData = { name: word, coords: data.coords, color: data.color };
         scene.add(label);
         labelSprites[word] = label;
+        labelSpritesList.push(label);
         
         Object.entries(vectorObjects).forEach(([name, obj]) => {
             if (name !== word) {
@@ -320,6 +583,8 @@ window.clearCustomVectors = function() {
         }
         if (labelSprites[word]) {
             scene.remove(labelSprites[word]);
+            const labelIdx = labelSpritesList.findIndex(l => l.userData.name === word);
+            if (labelIdx > -1) labelSpritesList.splice(labelIdx, 1);
             delete labelSprites[word];
         }
         
@@ -365,6 +630,9 @@ window.startFresh = function() {
         });
     });
     
+    // Clear label sprites list
+    labelSpritesList.length = 0;
+    
     Object.keys(vectors).forEach(key => delete vectors[key]);
     Object.keys(originalEmbeddings).forEach(key => delete originalEmbeddings[key]);
     
@@ -392,6 +660,14 @@ document.addEventListener('DOMContentLoaded', () => {
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
+    
+    // Animate connection lines
+    connectionLines.forEach(line => {
+        if (line.userData.isAnimated && line.material.uniforms) {
+            line.material.uniforms.time.value += 0.016; // ~60fps
+        }
+    });
+    
     renderer.render(scene, camera);
 }
 

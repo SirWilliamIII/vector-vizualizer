@@ -11,7 +11,7 @@
         <div id="canvas-container"></div>
         
         <div class="legend">
-            <h2>🎨 SIMILARITY COLORS</h2>
+            <h2>Similarity Colors</h2>
             <div class="legend-item">
                 <div class="legend-color" style="background: #4ade80;"></div>
                 <div class="legend-text">High (>0.7) - Very Similar</div>
@@ -25,36 +25,37 @@
                 <div class="legend-text">Low (<0.3) - Different</div>
             </div>
             <div class="instruction">
-                💡 <strong>Hover</strong> over vectors to see relationships<br>
-                🖱️ <strong>Click</strong> two vectors to compare them<br>
-                🔄 <strong>Drag</strong> to rotate the view
+                <strong>Hover</strong> over vectors to see relationships<br>
+                <strong>Click</strong> two vectors to compare them<br>
+                <strong>Drag</strong> to rotate the view<br>
+                <strong>ESC</strong> to clear selection
             </div>
         </div>
         
         <div class="controls">
-            <button class="control-btn" onclick="resetView()">🎯 Reset View</button>
-            <button class="control-btn" onclick="clearSelection()">✕ Clear Selection</button>
-            <button class="control-btn" onclick="clearCustomVectors()">🗑️ Clear Custom</button>
-            <button class="control-btn" onclick="startFresh()">🆕 Start Fresh</button>
+            <button class="control-btn" onclick="resetView()">Reset View</button>
+            <button class="control-btn" onclick="clearSelection()">Clear Selection</button>
+            <button class="control-btn" onclick="clearCustomVectors()">Clear Custom</button>
+            <button class="control-btn" onclick="startFresh()">Start Fresh</button>
         </div>
         
         <div class="add-vector-panel">
-            <h3>➕ ADD YOUR OWN VECTOR</h3>
+            <h3>Add Your Own Vector</h3>
             <input 
                 type="text" 
                 id="word-input" 
                 placeholder="Type a word (e.g., 'bird', 'java', 'truck')"
                 class="word-input"
             />
-            <button class="add-btn" onclick="addCustomVector()">ADD VECTOR</button>
+            <button class="add-btn" onclick="addCustomVector()">Add Vector</button>
             <div id="status-message" class="status-message"></div>
             <div class="input-hint">
-                💡 Try words related to: pets (cat, dog), programming (python, code), or vehicles (car)
+                Try words related to: pets (cat, dog), programming (python, code), or vehicles (car)
             </div>
         </div>
         
         <div class="info-panel" id="info-panel">
-            <h3>👆 SELECT VECTORS TO COMPARE</h3>
+            <h3>Select Vectors to Compare</h3>
             <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
                 Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
             </p>

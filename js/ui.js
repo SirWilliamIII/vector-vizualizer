@@ -6,7 +6,7 @@ export function updateInfoPanel(selectedVectors) {
     
     if (selectedVectors.length === 0) {
         panel.innerHTML = `
-            <h3>👆 SELECT VECTORS TO COMPARE</h3>
+            <h3>Select Vectors to Compare</h3>
             <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
                 Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
             </p>
@@ -20,7 +20,7 @@ export function updateInfoPanel(selectedVectors) {
         const mag = magnitude(data.coords);
         
         panel.innerHTML = `
-            <h3>📊 SELECTED VECTOR</h3>
+            <h3>Selected Vector</h3>
             <div class="vector-detail" style="border-color: #${data.color.toString(16).padStart(6, '0')}">
                 <div class="vector-name" style="color: #${data.color.toString(16).padStart(6, '0')}">${name}</div>
                 <div class="vector-coords">[${data.coords.map(v => v.toFixed(2)).join(', ')}]</div>
@@ -45,7 +45,10 @@ export function updateInfoPanel(selectedVectors) {
     const cosineClass = cosine > 0.7 ? 'high-similarity' : cosine > 0.3 ? 'medium-similarity' : 'low-similarity';
     
     panel.innerHTML = `
-        <h3>🔍 VECTOR COMPARISON</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin: 0;">Vector Comparison</h3>
+            <button id="close-comparison" style="background: none; border: none; color: rgba(255, 255, 255, 0.6); cursor: pointer; font-size: 1.5rem; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='rgba(255,255,255,0.9)';" onmouseout="this.style.background='none'; this.style.color='rgba(255,255,255,0.6)';">×</button>
+        </div>
         
         <div class="vector-detail" style="border-color: #${data1.color.toString(16).padStart(6, '0')}">
             <div class="vector-name" style="color: #${data1.color.toString(16).padStart(6, '0')}">${name1}</div>
