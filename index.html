@@ -10,52 +10,56 @@
     <div id="container">
         <div id="canvas-container"></div>
         
-        <div class="legend">
-            <h2>Similarity Colors</h2>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #4ade80;"></div>
-                <div class="legend-text">High (>0.7) - Very Similar</div>
+        <div class="left-column">
+            <div class="legend">
+                <h2>Similarity Colors</h2>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #4ade80;"></div>
+                    <div class="legend-text">High (>0.7) - Very Similar</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #fbbf24;"></div>
+                    <div class="legend-text">Medium (0.3-0.7) - Somewhat Similar</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f87171;"></div>
+                    <div class="legend-text">Low (<0.3) - Different</div>
+                </div>
             </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #fbbf24;"></div>
-                <div class="legend-text">Medium (0.3-0.7) - Somewhat Similar</div>
+            
+            <div class="instructions">
+                <strong>Hover</strong> over vectors to see relationships<br>
+                <strong>Click</strong> two vectors to compare them<br>
+                <strong>Drag</strong> to rotate the view<br>
+                <strong>ESC</strong> to clear selection
             </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: #f87171;"></div>
-                <div class="legend-text">Low (<0.3) - Different</div>
+            
+            <div class="add-vector-panel">
+                <h3>Add Your Own Vector</h3>
+                <input 
+                    type="text" 
+                    id="word-input" 
+                    placeholder="Type a word (e.g., 'bird', 'java', 'truck')"
+                    class="word-input"
+                />
+                <button class="add-btn" onclick="addCustomVector()">Add Vector</button>
+                <div id="status-message" class="status-message"></div>
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn" onclick="resetView()">Reset View</button>
+                <button class="control-btn" onclick="startFresh()">Start Fresh</button>
+                <button class="control-btn" onclick="exportVisual()">Export Image</button>
             </div>
         </div>
         
-        <div class="instructions">
-            <strong>Hover</strong> over vectors to see relationships<br>
-            <strong>Click</strong> two vectors to compare them<br>
-            <strong>Drag</strong> to rotate the view<br>
-            <strong>ESC</strong> to clear selection
-        </div>
-        
-        <div class="controls">
-            <button class="control-btn" onclick="resetView()">Reset View</button>
-            <button class="control-btn" onclick="startFresh()">Start Fresh</button>
-            <button class="control-btn" onclick="exportVisual()">Export Image</button>
-        </div>
-        
-        <div class="add-vector-panel">
-            <h3>Add Your Own Vector</h3>
-            <input 
-                type="text" 
-                id="word-input" 
-                placeholder="Type a word (e.g., 'bird', 'java', 'truck')"
-                class="word-input"
-            />
-            <button class="add-btn" onclick="addCustomVector()">Add Vector</button>
-            <div id="status-message" class="status-message"></div>
-        </div>
-        
-        <div class="info-panel" id="info-panel">
-            <h3>Select Vectors to Compare</h3>
-            <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
-                Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
-            </p>
+        <div class="right-column">
+            <div class="info-panel" id="info-panel">
+                <h3>Select Vectors to Compare</h3>
+                <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
+                    Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
+                </p>
+            </div>
         </div>
     </div>
 

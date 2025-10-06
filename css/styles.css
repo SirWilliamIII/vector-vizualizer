@@ -22,6 +22,22 @@ body {
     height: 100%;
 }
 
+.left-column {
+    pointer-events: none;
+}
+
+.left-column > * {
+    pointer-events: auto;
+}
+
+.right-column {
+    pointer-events: none;
+}
+
+.right-column > * {
+    pointer-events: auto;
+}
+
 .legend {
     position: absolute;
     top: 24px;
@@ -196,6 +212,19 @@ body {
 .medium-similarity { color: #fbbf24; background: rgba(251, 191, 36, 0.1); }
 .low-similarity { color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
+.add-vector-panel {
+    position: absolute;
+    bottom: 90px;
+    left: 24px;
+    background: rgba(15, 20, 35, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 300px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
 .controls {
     position: absolute;
     bottom: 24px;
@@ -229,19 +258,6 @@ body {
     border-color: rgba(255, 255, 255, 0.2);
     color: rgba(255, 255, 255, 0.95);
     transform: translateY(-1px);
-}
-
-.add-vector-panel {
-    position: absolute;
-    bottom: 90px;
-    left: 24px;
-    background: rgba(15, 20, 35, 0.92);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 20px;
-    min-width: 300px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
 .add-vector-panel h3 {
@@ -350,4 +366,161 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.25);
+}
+
+/* Smaller height windows (iPad Stage Manager, etc.) */
+@media (max-height: 700px) {
+    .legend,
+    .instructions,
+    .add-vector-panel,
+    .controls {
+        left: 12px;
+        padding: 12px;
+    }
+    
+    .legend {
+        top: 12px;
+        font-size: 0.7rem;
+    }
+    
+    .instructions {
+        top: 140px;
+        font-size: 0.75rem;
+        line-height: 1.6;
+        padding: 12px;
+    }
+    
+    .add-vector-panel {
+        bottom: 60px;
+        min-width: 240px;
+    }
+    
+    .controls {
+        bottom: 12px;
+    }
+    
+    .control-btn {
+        padding: 6px 10px;
+        font-size: 0.7rem;
+    }
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 1200px) {
+    .left-column {
+        position: absolute;
+        top: 24px;
+        left: 24px;
+        bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .legend,
+    .instructions,
+    .add-vector-panel,
+    .controls {
+        position: static;
+    }
+    
+    .controls {
+        margin-top: 21px;
+    }
+}
+
+/* Tablet Responsiveness (iPad, etc.) */
+@media (max-width: 1200px) and (max-height: 900px) {
+    .legend {
+        top: 16px;
+        left: 16px;
+        padding: 16px;
+        min-width: 200px;
+    }
+    
+    .legend h2 {
+        font-size: 0.7rem;
+        margin-bottom: 12px;
+    }
+    
+    .legend-text {
+        font-size: 0.75rem;
+    }
+    
+    .instructions {
+        top: 160px;
+        left: 16px;
+        padding: 16px;
+        min-width: 200px;
+        font-size: 0.8125rem;
+        line-height: 1.7;
+    }
+    
+    .add-vector-panel {
+        bottom: 70px;
+        left: 16px;
+        padding: 16px;
+        min-width: 260px;
+    }
+    
+    .add-vector-panel h3 {
+        font-size: 0.7rem;
+        margin-bottom: 10px;
+    }
+    
+    .word-input,
+    .add-btn {
+        font-size: 0.8125rem;
+        padding: 8px 10px;
+    }
+    
+    .controls {
+        bottom: 16px;
+        left: 16px;
+        padding: 12px;
+        gap: 6px;
+    }
+    
+    .control-btn {
+        padding: 7px 12px;
+        font-size: 0.75rem;
+    }
+    
+    .info-panel {
+        top: 16px;
+        right: 16px;
+        padding: 18px;
+        min-width: 280px;
+        max-width: 340px;
+    }
+    
+    .info-panel h3 {
+        font-size: 0.7rem;
+    }
+    
+    .vector-detail {
+        padding: 12px;
+        margin: 10px 0;
+    }
+    
+    .vector-name {
+        font-size: 0.9rem;
+    }
+    
+    .vector-coords {
+        font-size: 0.75rem;
+    }
+    
+    .metric-card {
+        padding: 10px;
+        margin: 8px 0;
+    }
+    
+    .metric-name {
+        font-size: 0.75rem;
+    }
+    
+    .metric-value {
+        font-size: 0.875rem;
+    }
 }
