@@ -57,9 +57,9 @@ const yAxis = createAxisArrow([0, 0, 0], [0, axisLength, 0], 0x00ff00, 0.05);
 axesGroup.add(yAxis);
 addAxisLabel('Y', [0, axisLength + 0.5, 0], 0x00ff00, axesGroup);
 
-const zAxis = createAxisArrow([0, 0, 0], [0, 0, axisLength], 0x0000ff, 0.05);
+const zAxis = createAxisArrow([0, 0, 0], [0, 0, axisLength], 0xffff00, 0.05);
 axesGroup.add(zAxis);
-addAxisLabel('Z', [0, 0, axisLength + 0.5], 0x0000ff, axesGroup);
+addAxisLabel('Z', [0, 0, axisLength + 0.5], 0xffff00, axesGroup);
 
 scene.add(axesGroup);
 
@@ -675,6 +675,35 @@ window.startFresh = function() {
     updateInfoPanel(selectedVectors);
     showStatus('Canvas cleared! Add your first word below.', 'success');
     setTimeout(() => clearStatus(), 3000);
+};
+
+window.exportVisual = function() {
+    // Create a timestamp for the filename
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `vector-viz-${timestamp}.png`;
+    
+    // Render the scene one more time to ensure it's up to date
+    renderer.render(scene, camera);
+    
+    // Get the canvas data as a blob
+    renderer.domElement.toBlob((blob) => {
+        // Create a download link
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        
+        // Trigger download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        URL.revokeObjectURL(url);
+        
+        showStatus('Image exported successfully!', 'success');
+        setTimeout(() => clearStatus(), 2000);
+    }, 'image/png');
 };
 
 // Handle Enter key in input

@@ -314,7 +314,7 @@ export function createAngleArc(start, end, color, angleDegrees) {
     
     context.clearRect(0, 0, 256, 128);
     context.font = 'bold 32px -apple-system, sans-serif';
-    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    context.fillStyle = '#cccccc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.shadowColor = 'rgba(0, 0, 0, 0.8)';
@@ -360,7 +360,7 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     const chars = distanceText.split('');
     
     context.font = 'bold 52px -apple-system, BlinkMacSystemFont, sans-serif';
-    context.fillStyle = '#ffffff';
+    context.fillStyle = '#cccccc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.shadowColor = 'rgba(0, 0, 0, 0.8)';

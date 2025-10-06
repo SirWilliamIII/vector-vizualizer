@@ -24,19 +24,19 @@
                 <div class="legend-color" style="background: #f87171;"></div>
                 <div class="legend-text">Low (<0.3) - Different</div>
             </div>
-            <div class="instruction">
-                <strong>Hover</strong> over vectors to see relationships<br>
-                <strong>Click</strong> two vectors to compare them<br>
-                <strong>Drag</strong> to rotate the view<br>
-                <strong>ESC</strong> to clear selection
-            </div>
+        </div>
+        
+        <div class="instructions">
+            <strong>Hover</strong> over vectors to see relationships<br>
+            <strong>Click</strong> two vectors to compare them<br>
+            <strong>Drag</strong> to rotate the view<br>
+            <strong>ESC</strong> to clear selection
         </div>
         
         <div class="controls">
             <button class="control-btn" onclick="resetView()">Reset View</button>
-            <button class="control-btn" onclick="clearSelection()">Clear Selection</button>
-            <button class="control-btn" onclick="clearCustomVectors()">Clear Custom</button>
             <button class="control-btn" onclick="startFresh()">Start Fresh</button>
+            <button class="control-btn" onclick="exportVisual()">Export Image</button>
         </div>
         
         <div class="add-vector-panel">
@@ -49,9 +49,6 @@
             />
             <button class="add-btn" onclick="addCustomVector()">Add Vector</button>
             <div id="status-message" class="status-message"></div>
-            <div class="input-hint">
-                Try words related to: pets (cat, dog), programming (python, code), or vehicles (car)
-            </div>
         </div>
         
         <div class="info-panel" id="info-panel">

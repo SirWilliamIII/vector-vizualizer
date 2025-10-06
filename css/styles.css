@@ -67,17 +67,25 @@ body {
     line-height: 1.5;
 }
 
-.instruction {
-    margin-top: 20px;
-    padding: 12px 0;
-    background: transparent;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    border-left: none;
-    border-radius: 0;
-    font-size: 0.75rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.55);
-    padding-top: 16px;
+.instructions {
+    position: absolute;
+    top: 220px;
+    left: 24px;
+    background: rgba(15, 20, 35, 0.92);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 240px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    font-size: 0.9375rem;
+    line-height: 1.9;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.instructions strong {
+    color: #ffffff;
+    font-weight: 600;
 }
 
 .info-panel {
@@ -225,8 +233,8 @@ body {
 
 .add-vector-panel {
     position: absolute;
-    bottom: 24px;
-    right: 24px;
+    bottom: 90px;
+    left: 24px;
     background: rgba(15, 20, 35, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
