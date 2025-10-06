@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { vectors, originalEmbeddings } from './vector-data.js';
-import { createVectorArrow, createTextLabel, createConnectionLine, createAxisArrow, addAxisLabel } from './three-helpers.js';
-import { cosineSimilarity } from './math-utils.js';
+import { createVectorArrow, createTextLabel, createConnectionLine, createAxisArrow, addAxisLabel, createAngleArc, createDistanceAnnotation } from './three-helpers.js';
+import { cosineSimilarity, euclideanDistance } from './math-utils.js';
 import { pcaTo3D } from './math-utils.js';
 import { initEmbeddingModel, getEmbedding, isModelReady } from './embeddings.js';
 import { updateInfoPanel, showStatus, clearStatus } from './ui.js';
@@ -36,6 +36,7 @@ const labelSprites = {};
 const vectorMeshes = [];
 const labelSpritesList = [];
 const connectionLines = [];
+const annotations = []; // Track angle arcs and distance labels
 const vectorAnimations = new Map(); // Track ongoing animations
 
 // Add grid
@@ -116,7 +117,6 @@ function onMouseMove(event) {
         if (selectedVectors.includes(mesh.userData.name)) return;
         mesh.material.emissiveIntensity = 0.15;
         mesh.material.opacity = 0.95;
-        mesh.scale.set(1, 1, 1);
     });
     
     // Reset all labels to default state
@@ -133,7 +133,6 @@ function onMouseMove(event) {
         if (!selectedVectors.includes(name)) {
             mesh.material.emissiveIntensity = 0.5;
             mesh.material.opacity = 1;
-            mesh.scale.set(1.2, 1.2, 1.2);
             // Also highlight the label
             if (labelSprites[name]) {
                 labelSprites[name].material.opacity = 1;
@@ -155,7 +154,6 @@ function onMouseMove(event) {
                 arrow.children.forEach(mesh => {
                     mesh.material.emissiveIntensity = 0.5;
                     mesh.material.opacity = 1;
-                    mesh.scale.set(1.2, 1.2, 1.2);
                 });
             }
         }
@@ -201,7 +199,6 @@ function animateVector(mesh, targetProps, duration = 400) {
     const startTime = Date.now();
     const startEmissive = mesh.material.emissiveIntensity;
     const startOpacity = mesh.material.opacity;
-    const startScale = mesh.scale.x;
     
     const animationId = mesh.uuid;
     
@@ -212,8 +209,6 @@ function animateVector(mesh, targetProps, duration = 400) {
         
         mesh.material.emissiveIntensity = startEmissive + (targetProps.emissiveIntensity - startEmissive) * eased;
         mesh.material.opacity = startOpacity + (targetProps.opacity - startOpacity) * eased;
-        const targetScale = targetProps.scale;
-        mesh.scale.setScalar(startScale + (targetScale - startScale) * eased);
         
         if (progress < 1) {
             vectorAnimations.set(animationId, requestAnimationFrame(animate));
@@ -242,9 +237,8 @@ function updateSelection() {
         if (selectedVectors.includes(mesh.userData.name)) {
             // Selected vectors: bright and prominent
             animateVector(mesh, {
-                emissiveIntensity: 1.2,
+                emissiveIntensity: 1.5,
                 opacity: 1,
-                scale: 1.6,
                 visible: true
             });
         } else if (twoSelected) {
@@ -252,7 +246,6 @@ function updateSelection() {
             animateVector(mesh, {
                 emissiveIntensity: 0.02,
                 opacity: 0,
-                scale: 0.5,
                 visible: false
             }, 300);
         } else if (hasSelection) {
@@ -260,7 +253,6 @@ function updateSelection() {
             animateVector(mesh, {
                 emissiveIntensity: 0.02,
                 opacity: 0.25,
-                scale: 0.7,
                 visible: true
             });
         } else {
@@ -268,7 +260,6 @@ function updateSelection() {
             animateVector(mesh, {
                 emissiveIntensity: 0.15,
                 opacity: 0.95,
-                scale: 1,
                 visible: true
             });
         }
@@ -339,6 +330,7 @@ function updateSelection() {
     });
     
     clearConnectionLines();
+    clearAnnotations();
     
     if (selectedVectors.length === 2) {
         const coords1 = vectors[selectedVectors[0]].coords;
@@ -349,6 +341,27 @@ function updateSelection() {
         const line = createConnectionLine(coords1, coords2, color);
         scene.add(line);
         connectionLines.push(line);
+        
+        // Calculate angle in degrees for cosine similarity visualization
+        const v1 = new THREE.Vector3(...coords1);
+        const v2 = new THREE.Vector3(...coords2);
+        const v1Normalized = v1.clone().normalize();
+        const v2Normalized = v2.clone().normalize();
+        const angleRad = Math.acos(v1Normalized.dot(v2Normalized));
+        const angleDeg = angleRad * (180 / Math.PI);
+        
+        // Create angle arc visualization
+        const angleArc = createAngleArc(coords1, coords2, color, angleDeg);
+        scene.add(angleArc);
+        annotations.push(angleArc);
+        
+        // Calculate euclidean distance (same as shown in info panel)
+        const euclideanDist = euclideanDistance(coords1, coords2);
+        
+        // Create distance annotation
+        const distAnnotation = createDistanceAnnotation(coords1, coords2, euclideanDist, 'euclidean');
+        scene.add(distAnnotation);
+        annotations.push(distAnnotation);
         
         // Auto-focus camera on the two selected vectors
         focusCameraOnVectors(coords1, coords2);
@@ -371,6 +384,11 @@ function clearConnectionLines() {
     connectionLines.length = 0;
 }
 
+function clearAnnotations() {
+    annotations.forEach(annotation => scene.remove(annotation));
+    annotations.length = 0;
+}
+
 function focusCameraOnVectors(coords1, coords2) {
     // Calculate midpoint between vectors
     const midpoint = new THREE.Vector3(
@@ -384,15 +402,28 @@ function focusCameraOnVectors(coords1, coords2) {
     const vec2 = new THREE.Vector3(...coords2);
     const distance = vec1.distanceTo(vec2);
     
-    // Optimal camera distance (factor of 2.5 gives nice framing)
-    const cameraDistance = Math.max(distance * 2.5, 8);
+    // Calculate bounding sphere that includes both vectors and annotations
+    const maxVecLength = Math.max(vec1.length(), vec2.length());
+    const annotationOffset = 2.5;
+    const boundingSphereRadius = Math.max(distance / 2, maxVecLength) + annotationOffset;
     
-    // Current camera direction from center
-    const currentPos = camera.position.clone();
-    const currentDir = currentPos.normalize();
+    // Optimal camera distance for perfect framing
+    const cameraDistance = Math.max(boundingSphereRadius * 1.1, 4);
     
-    // New camera position - same direction but adjusted distance from midpoint
-    const targetPos = currentDir.multiplyScalar(cameraDistance).add(midpoint);
+    // Calculate normal to the plane formed by the two vectors (perpendicular to triangle face)
+    const normal = new THREE.Vector3().crossVectors(vec1, vec2).normalize();
+    
+    // If vectors are nearly parallel, use a fallback
+    if (normal.length() < 0.1) {
+        const up = new THREE.Vector3(0, 1, 0);
+        normal.crossVectors(vec1, up).normalize();
+        if (normal.length() < 0.1) {
+            normal.set(0, 0, 1);
+        }
+    }
+    
+    // Position camera perpendicular to the triangle face
+    const targetPos = normal.multiplyScalar(cameraDistance).add(midpoint);
     
     // Animate camera movement
     const startPos = camera.position.clone();
@@ -441,10 +472,10 @@ window.resetView = function() {
 window.clearSelection = function() {
     selectedVectors = [];
     clearConnectionLines();
+    clearAnnotations();
     vectorMeshes.forEach(mesh => {
         mesh.material.emissiveIntensity = 0.15;
         mesh.material.opacity = 0.95;
-        mesh.scale.set(1, 1, 1);
     });
     labelSpritesList.forEach(label => {
         label.material.opacity = 0.95;
@@ -600,6 +631,7 @@ window.clearCustomVectors = function() {
     
     selectedVectors = selectedVectors.filter(w => !customWords.includes(w));
     clearConnectionLines();
+    clearAnnotations();
     updateInfoPanel(selectedVectors);
     
     showStatus(`Cleared ${customWords.length} custom vector(s)`, 'success');
@@ -638,6 +670,7 @@ window.startFresh = function() {
     
     selectedVectors = [];
     clearConnectionLines();
+    clearAnnotations();
     
     updateInfoPanel(selectedVectors);
     showStatus('Canvas cleared! Add your first word below.', 'success');
