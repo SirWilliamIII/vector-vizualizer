@@ -43,14 +43,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <strong>Click</strong> two vectors to compare them<br>
                 <strong>Drag</strong> to rotate the view<br>
                 <strong>ESC</strong> to clear selection
+                <div class="instruction-hint">**Try adding phrases to see how they cluster</div>
             </div>
             
             <div class="add-vector-panel">
-                <h3>Add Your Own Vector</h3>
+                <h3>
+                    Add Your Own Vector
+                    <span class="help-icon">
+                        <span class="help-icon-text">?</span>
+                        <span class="help-tooltip">
+                            <strong>Need inspiration?</strong> Try these in different orders:<br><br>
+                            spark • signal • pattern recognition<br>
+                            neural memory • human error<br>
+                            artificial empathy • ghost<br>
+                            memory leak • machine<br>
+                            lost moment • future nostalgia
+                        </span>
+                    </span>
+                </h3>
                 <input 
                     type="text" 
                     id="word-input" 
-                    placeholder="Type a word (e.g., 'bird', 'java', 'truck')"
+                    placeholder="Type any word or phrase"
                     class="word-input"
                 />
                 <button class="add-btn" onclick="addCustomVector()">Add Vector</button>

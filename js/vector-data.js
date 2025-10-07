@@ -9,7 +9,7 @@ export const vectors = {
 
 // Store original embeddings for new words (for better projection)
 export const originalEmbeddings = {
-    "cat": null,
+    "signal": null,
     "dog": null,
     "python": null,
     "code": null,
