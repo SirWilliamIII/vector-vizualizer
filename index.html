@@ -77,7 +77,30 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <button class="control-btn" onclick="exportVisual()">Export Image</button>
             </div>
         </div>
-        
+
+        <div class="bottom-column">
+            <div class="model-selector-container">
+                <label for="model-select" class="model-label">
+                    Embedding Model
+                    <span class="help-icon">
+                        <span class="help-icon-text">?</span>
+                        <span class="help-tooltip">
+                            <strong>Different models show different perspectives:</strong><br><br>
+                            <strong>MiniLM:</strong> Optimized for finding paraphrases and similar sentences<br><br>
+                            <strong>E5 (Microsoft):</strong> Trained on billions of web text pairs, captures diverse semantic relationships<br><br>
+                            <strong>BGE (BAAI):</strong> Optimized for retrieval and ranking, uses knowledge distillation from expert models<br><br>
+                            Try the same words with different models to see how training philosophy affects meaning!
+                        </span>
+                    </span>
+                </label>
+                <select id="model-select" class="model-select">
+                    <option value="minilm">MiniLM (Sentence-Transformers) - 384D, ~50MB</option>
+                    <option value="e5-small">E5-small (Microsoft Research) - 384D, ~133MB</option>
+                    <option value="bge-small">BGE-small (BAAI) - 384D, ~150MB</option>
+                </select>
+            </div>
+        </div>
+
         <div class="right-column">
             <div class="info-panel" id="info-panel">
                 <h3>Select Vectors to Compare</h3>
