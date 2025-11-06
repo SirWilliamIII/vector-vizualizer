@@ -1,51 +1,90 @@
 import * as THREE from 'three';
 
-export function createVectorArrow(start, end, color) {
+export function createVectorArrow(start, end, color, allVectorCoords = []) {
     const direction = new THREE.Vector3(...end).sub(new THREE.Vector3(...start));
     const length = direction.length();
-    
+
+    // Calculate minimum distance to other vectors for dynamic hitbox sizing
+    let minDistance = Infinity;
+    const currentVec = new THREE.Vector3(...end);
+    for (const otherCoords of allVectorCoords) {
+        if (otherCoords === end) continue; // Skip self
+        const otherVec = new THREE.Vector3(...otherCoords);
+        const dist = currentVec.distanceTo(otherVec);
+        if (dist < minDistance) {
+            minDistance = dist;
+        }
+    }
+
     const arrow = new THREE.Group();
-    
-    const thickness = 0.035;
-    
-    // Sleek modern shaft with subtle taper
-    const shaftLength = length * 0.78;
-    const shaftGeometry = new THREE.CylinderGeometry(thickness * 0.7, thickness * 0.85, shaftLength, 32);
-    const shaftMaterial = new THREE.MeshPhysicalMaterial({ 
+
+    // Modern, thin elegant line
+    const thinThickness = 0.015; // Thin at base
+    const thickThickness = 0.035; // Thicker at arrowhead
+
+    // Tapered shaft - gracefully flows toward arrowhead
+    const shaftLength = length * 0.88;
+    const shaftGeometry = new THREE.CylinderGeometry(thickThickness, thinThickness, shaftLength, 16);
+    const shaftMaterial = new THREE.MeshStandardMaterial({
         color: color,
         emissive: color,
-        emissiveIntensity: 0.2,
-        metalness: 0.2,
-        roughness: 0.15,
+        emissiveIntensity: 0.4,
+        roughness: 0.3,
+        metalness: 0,
         transparent: true,
-        opacity: 0.92,
-        clearcoat: 0.8,
-        clearcoatRoughness: 0.2
+        opacity: 0.95
     });
     const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-    
-    // Sharp, modern cone head
-    const coneHeight = length * 0.22;
-    const coneGeometry = new THREE.ConeGeometry(thickness * 2.5, coneHeight, 32);
-    const coneMaterial = new THREE.MeshPhysicalMaterial({ 
+
+    // Sharp, minimal arrowhead - flows from tapered shaft
+    const coneHeight = length * 0.12;
+    const coneGeometry = new THREE.ConeGeometry(thickThickness * 1.8, coneHeight, 16);
+    const coneMaterial = new THREE.MeshStandardMaterial({
         color: color,
         emissive: color,
-        emissiveIntensity: 0.3,
-        metalness: 0.3,
-        roughness: 0.1,
+        emissiveIntensity: 0.5,
+        roughness: 0.2,
+        metalness: 0,
         transparent: true,
-        opacity: 0.95,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.1
+        opacity: 0.98
     });
     const cone = new THREE.Mesh(coneGeometry, coneMaterial);
     cone.position.y = shaftLength + coneHeight / 2;
-    
+
     shaft.position.y = shaftLength / 2;
-    
+
     arrow.add(shaft);
     arrow.add(cone);
-    
+
+    // Add invisible hitbox for easier clicking - dynamically sized based on proximity
+    let hitboxMultiplier = 10; // Default: large hitbox
+
+    // If vectors are close together, make hitbox more precise
+    if (minDistance < 2) {
+        hitboxMultiplier = 4; // Tight hitbox for clustered vectors
+    } else if (minDistance < 4) {
+        hitboxMultiplier = 6; // Medium hitbox for somewhat close vectors
+    }
+
+    const hitboxRadius = thickThickness * hitboxMultiplier;
+    const hitboxGeometry = new THREE.CylinderGeometry(hitboxRadius, hitboxRadius, length, 8);
+    const hitboxMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        visible: false,
+        colorWrite: false,
+        depthTest: true,
+        depthWrite: false,
+        side: THREE.DoubleSide
+    });
+    const hitbox = new THREE.Mesh(hitboxGeometry, hitboxMaterial);
+    hitbox.position.y = length / 2;
+    hitbox.visible = true; // Keep visible for raycasting but material won't render
+    hitbox.renderOrder = -1; // Render behind everything
+    // Copy user data to hitbox so raycaster can identify it
+    hitbox.userData.isHitbox = true;
+    arrow.add(hitbox);
+
     arrow.position.set(...start);
     const axis = new THREE.Vector3(0, 1, 0);
     const quaternion = new THREE.Quaternion().setFromUnitVectors(
@@ -53,105 +92,62 @@ export function createVectorArrow(start, end, color) {
         direction.normalize()
     );
     arrow.quaternion.copy(quaternion);
-    
+
     return arrow;
 }
 
 export function createTextLabel(text, color) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
-    
-    // Higher resolution for sharper text
-    const scale = 3;
+
+    // Higher resolution for sharp rendering
+    const scale = 4;
     canvas.width = 512 * scale;
-    canvas.height = 256 * scale;
+    canvas.height = 160 * scale;
     context.scale(scale, scale);
-    
-    // Clear with transparency
-    context.clearRect(0, 0, 512, 256);
-    
+
+    // Clear with full transparency
+    context.clearRect(0, 0, 512, 160);
+
     // Enable better text rendering
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
-    
-    // Measure text for dynamic sizing
-    context.font = '600 56px -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif';
-    context.textRendering = 'geometricPrecision';
-    const metrics = context.measureText(text);
-    const textWidth = metrics.width;
-    const padding = 32;
-    const boxWidth = textWidth + padding * 2;
-    const boxHeight = 96;
-    const boxX = (512 - boxWidth) / 2;
-    const boxY = (256 - boxHeight) / 2;
-    const borderRadius = 16;
-    
-    // Create gradient background with glass morphism effect
-    const gradient = context.createLinearGradient(boxX, boxY, boxX, boxY + boxHeight);
-    gradient.addColorStop(0, 'rgba(25, 30, 50, 0.85)');
-    gradient.addColorStop(1, 'rgba(15, 20, 40, 0.75)');
-    
-    // Draw outer glow
-    context.shadowColor = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.4)`;
-    context.shadowBlur = 20;
-    context.shadowOffsetX = 0;
-    context.shadowOffsetY = 0;
-    
-    // Draw background with rounded corners
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.roundRect(boxX, boxY, boxWidth, boxHeight, borderRadius);
-    context.fill();
-    
-    // Reset shadow for border
-    context.shadowBlur = 0;
-    
-    // Draw subtle border with gradient
-    const borderGradient = context.createLinearGradient(boxX, boxY, boxX, boxY + boxHeight);
-    borderGradient.addColorStop(0, `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.3)`);
-    borderGradient.addColorStop(0.5, `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.15)`);
-    borderGradient.addColorStop(1, `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.3)`);
-    
-    context.strokeStyle = borderGradient;
-    context.lineWidth = 2;
-    context.beginPath();
-    context.roundRect(boxX, boxY, boxWidth, boxHeight, borderRadius);
-    context.stroke();
-    
-    // Add subtle inner highlight at top
-    const highlightGradient = context.createLinearGradient(boxX, boxY, boxX, boxY + 30);
-    highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
-    highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    
-    context.fillStyle = highlightGradient;
-    context.beginPath();
-    context.roundRect(boxX + 1, boxY + 1, boxWidth - 2, 30, borderRadius - 1);
-    context.fill();
-    
-    // Modern text rendering with subtle glow
-    context.shadowColor = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.6)`;
-    context.shadowBlur = 8;
-    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+
+    // Modern, clean sans-serif font
+    context.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillText(text, 256, 128);
-    
+
+    // Subtle dark backdrop for readability (very minimal)
+    context.shadowColor = 'rgba(10, 14, 39, 0.8)';
+    context.shadowBlur = 16;
+    context.shadowOffsetX = 0;
+    context.shadowOffsetY = 0;
+    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    context.fillText(text, 256, 80);
+
+    // Add subtle colored glow
+    context.shadowColor = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.4)`;
+    context.shadowBlur = 12;
+    context.fillText(text, 256, 80);
+
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
     texture.needsUpdate = true;
-    
-    const spriteMaterial = new THREE.SpriteMaterial({ 
+
+    const spriteMaterial = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
         opacity: 0.95,
         depthTest: true,
-        depthWrite: false
+        depthWrite: false,
+        sizeAttenuation: true
     });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.scale.set(2, 1, 1);
-    
+
     return sprite;
 }
 

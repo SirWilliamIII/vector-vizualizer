@@ -35,7 +35,16 @@ document.getElementById('canvas-container').appendChild(renderer.domElement)
 
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
-controls.dampingFactor = 0.05
+controls.dampingFactor = 0.08 // Increased for smoother feel
+controls.rotateSpeed = 0.8
+controls.zoomSpeed = 1.2
+controls.panSpeed = 0.8
+controls.minDistance = 2
+controls.maxDistance = 50
+controls.enablePan = true
+// Smooth out zoom with damping
+controls.zoomToCursor = false
+controls.screenSpacePanning = true
 
 // State
 let selectedVectors = []
@@ -72,8 +81,9 @@ addAxisLabel('Z', [0, 0, axisLength + 0.5], 0xffff00, axesGroup)
 scene.add(axesGroup)
 
 // Create initial vectors
+const allCoords = Object.values(vectors).map(v => v.coords)
 Object.entries(vectors).forEach(([name, data]) => {
-  const arrow = createVectorArrow([0, 0, 0], data.coords, data.color)
+  const arrow = createVectorArrow([0, 0, 0], data.coords, data.color, allCoords)
   arrow.userData = { name, coords: data.coords, color: data.color }
   scene.add(arrow)
   vectorObjects[name] = arrow
@@ -110,6 +120,9 @@ scene.add(rimLight)
 
 // Raycaster for interaction
 const raycaster = new THREE.Raycaster()
+// Increase threshold to detect thin arrow geometries more easily
+raycaster.params.Line.threshold = 0.2
+raycaster.params.Points.threshold = 0.2
 const mouse = new THREE.Vector2()
 
 function onMouseMove(event) {
@@ -122,7 +135,7 @@ function onMouseMove(event) {
 
   // Reset all meshes to default state
   vectorMeshes.forEach((mesh) => {
-    if (selectedVectors.includes(mesh.userData.name)) return
+    if (mesh.userData.isHitbox || selectedVectors.includes(mesh.userData.name)) return
     mesh.material.emissiveIntensity = 0.15
     mesh.material.opacity = 0.95
   })
@@ -139,8 +152,16 @@ function onMouseMove(event) {
     const mesh = meshIntersects[0].object
     const name = mesh.userData.name
     if (!selectedVectors.includes(name)) {
-      mesh.material.emissiveIntensity = 0.5
-      mesh.material.opacity = 1
+      // Highlight visible meshes of this vector (skip hitbox)
+      const arrow = vectorObjects[name]
+      if (arrow) {
+        arrow.children.forEach((child) => {
+          if (!child.userData.isHitbox) {
+            child.material.emissiveIntensity = 0.5
+            child.material.opacity = 1
+          }
+        })
+      }
       // Also highlight the label
       if (labelSprites[name]) {
         labelSprites[name].material.opacity = 1
@@ -191,8 +212,10 @@ function onMouseClick(event) {
   if (name) {
     // Clicked on a vector or label
     if (selectedVectors.includes(name)) {
+      // Clicking a selected vector deselects it
       selectedVectors = selectedVectors.filter((v) => v !== name)
     } else {
+      // Otherwise add to selection (0 or 1 already selected)
       selectedVectors.push(name)
       if (selectedVectors.length > 2) {
         selectedVectors.shift()
@@ -200,10 +223,23 @@ function onMouseClick(event) {
     }
 
     updateSelection()
+  } else {
+    // Clicked empty space
+    if (selectedVectors.length === 2) {
+      // If 2 vectors are selected (comparison mode), clicking empty space resets everything
+      selectedVectors = []
+      window.resetView() // Reset camera to default position
+      updateSelection()
+    }
   }
 }
 
 function animateVector(mesh, targetProps, duration = 400) {
+  // Skip animation for invisible hitboxes
+  if (mesh.userData.isHitbox) {
+    return
+  }
+
   const startTime = Date.now()
   const startEmissive = mesh.material.emissiveIntensity
   const startOpacity = mesh.material.opacity
@@ -242,6 +278,17 @@ function animateVector(mesh, targetProps, duration = 400) {
 function updateSelection() {
   const hasSelection = selectedVectors.length > 0
   const twoSelected = selectedVectors.length === 2
+
+  // Hide/show axes and bottom panel based on comparison mode
+  if (twoSelected) {
+    axesGroup.visible = false
+    gridHelper.visible = false
+    document.querySelector('.bottom-column').style.display = 'none'
+  } else {
+    axesGroup.visible = true
+    gridHelper.visible = true
+    document.querySelector('.bottom-column').style.display = 'flex'
+  }
 
   vectorMeshes.forEach((mesh) => {
     if (selectedVectors.includes(mesh.userData.name)) {
@@ -412,27 +459,28 @@ function clearAnnotations() {
 }
 
 function focusCameraOnVectors(coords1, coords2) {
-  // Calculate midpoint between vectors
-  const midpoint = new THREE.Vector3(
-    (coords1[0] + coords2[0]) / 2,
-    (coords1[1] + coords2[1]) / 2,
-    (coords1[2] + coords2[2]) / 2
-  )
-
-  // Calculate distance between vectors
+  // Calculate midpoint of the triangle (origin + 2 vectors)
+  const origin = new THREE.Vector3(0, 0, 0)
   const vec1 = new THREE.Vector3(...coords1)
   const vec2 = new THREE.Vector3(...coords2)
+
+  // Triangle centroid for better framing
+  const centroid = new THREE.Vector3()
+    .add(origin)
+    .add(vec1)
+    .add(vec2)
+    .divideScalar(3)
+
+  // Calculate distance between vectors
   const distance = vec1.distanceTo(vec2)
 
-  // Calculate bounding sphere that includes both vectors and annotations
+  // Calculate bounding sphere that includes origin and both vectors
   const maxVecLength = Math.max(vec1.length(), vec2.length())
   const annotationOffset = 2.5
   const boundingSphereRadius = Math.max(distance / 2, maxVecLength) + annotationOffset
 
-  // Optimal camera distance for perfect framing
-  const cameraDistance = Math.max(boundingSphereRadius * 1.1, 4)
-
-  // Calculate normal to the plane formed by the two vectors (perpendicular to triangle face)
+  // Bird's eye view: position camera directly above the plane
+  // Calculate normal to the plane formed by the two vectors
   const normal = new THREE.Vector3().crossVectors(vec1, vec2).normalize()
 
   // If vectors are nearly parallel, use a fallback
@@ -444,8 +492,9 @@ function focusCameraOnVectors(coords1, coords2) {
     }
   }
 
-  // Position camera perpendicular to the triangle face
-  const targetPos = normal.multiplyScalar(cameraDistance).add(midpoint)
+  // Position camera above the triangle looking down - tight framing
+  const cameraDistance = Math.max(boundingSphereRadius * 1.15, 4)
+  const targetPos = normal.multiplyScalar(cameraDistance).add(centroid)
 
   // Animate camera movement
   const startPos = camera.position.clone()
@@ -463,7 +512,7 @@ function focusCameraOnVectors(coords1, coords2) {
         : 1 - Math.pow(-2 * progress + 2, 3) / 2
 
     camera.position.lerpVectors(startPos, targetPos, eased)
-    controls.target.lerpVectors(startTarget, midpoint, eased)
+    controls.target.lerpVectors(startTarget, centroid, eased)
     controls.update()
 
     if (progress < 1) {
@@ -497,6 +546,7 @@ window.clearSelection = function () {
   clearConnectionLines()
   clearAnnotations()
   vectorMeshes.forEach((mesh) => {
+    if (mesh.userData.isHitbox) return
     mesh.material.emissiveIntensity = 0.15
     mesh.material.opacity = 0.95
   })
@@ -585,7 +635,8 @@ window.addCustomVector = async function () {
 
     // Create new vector visualization
     const data = vectors[word]
-    const arrow = createVectorArrow([0, 0, 0], data.coords, data.color)
+    const updatedCoords = Object.values(vectors).map(v => v.coords)
+    const arrow = createVectorArrow([0, 0, 0], data.coords, data.color, updatedCoords)
     arrow.userData = { name: word, coords: data.coords, color: data.color }
     scene.add(arrow)
     vectorObjects[word] = arrow
@@ -610,7 +661,7 @@ window.addCustomVector = async function () {
 
         scene.remove(obj)
 
-        const newArrow = createVectorArrow([0, 0, 0], newCoords, vectors[name].color)
+        const newArrow = createVectorArrow([0, 0, 0], newCoords, vectors[name].color, updatedCoords)
         newArrow.userData = { name, coords: newCoords, color: vectors[name].color }
         scene.add(newArrow)
         vectorObjects[name] = newArrow

@@ -14,16 +14,31 @@ body {
 #container {
     width: 100vw;
     height: 100vh;
-    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+        "left canvas right"
+        "left bottom right";
+    gap: 0;
 }
 
 #canvas-container {
+    grid-area: 1 / 1 / 3 / 4;
     width: 100%;
     height: 100%;
+    z-index: 0;
 }
 
 .left-column {
+    grid-area: left;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
     pointer-events: none;
+    z-index: 10;
 }
 
 .left-column > * {
@@ -31,7 +46,13 @@ body {
 }
 
 .right-column {
+    grid-area: right;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
     pointer-events: none;
+    z-index: 10;
 }
 
 .right-column > * {
@@ -39,7 +60,13 @@ body {
 }
 
 .bottom-column {
+    grid-area: bottom;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
     pointer-events: none;
+    z-index: 10;
 }
 
 .bottom-column > * {
@@ -47,9 +74,6 @@ body {
 }
 
 .legend {
-    position: absolute;
-    top: 24px;
-    left: 24px;
     background: rgba(15, 20, 35, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -92,9 +116,6 @@ body {
 }
 
 .instructions {
-    position: absolute;
-    top: 220px;
-    left: 24px;
     background: rgba(20, 25, 45, 0.95);
     backdrop-filter: blur(16px);
     border: 2px solid rgba(74, 222, 128, 0.2);
@@ -122,9 +143,6 @@ body {
 }
 
 .info-panel {
-    position: absolute;
-    top: 24px;
-    right: 24px;
     background: rgba(15, 20, 35, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -230,9 +248,6 @@ body {
 .low-similarity { color: #f87171; background: rgba(248, 113, 113, 0.1); }
 
 .add-vector-panel {
-    position: absolute;
-    bottom: 90px;
-    left: 24px;
     background: rgba(15, 20, 35, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -240,12 +255,10 @@ body {
     padding: 20px;
     min-width: 300px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    margin-top: auto;
 }
 
 .controls {
-    position: absolute;
-    bottom: 24px;
-    left: 24px;
     background: rgba(15, 20, 35, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -446,10 +459,6 @@ body {
 }
 
 .model-selector-container {
-    position: absolute;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
     background: rgba(15, 20, 35, 0.92);
     backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -523,33 +532,30 @@ body {
 
 /* Smaller height windows (iPad Stage Manager, etc.) */
 @media (max-height: 700px) {
+    .left-column,
+    .right-column,
+    .bottom-column {
+        padding: 12px;
+    }
+
     .legend,
     .instructions,
     .add-vector-panel,
     .controls {
-        left: 12px;
         padding: 12px;
     }
 
     .legend {
-        top: 12px;
         font-size: 0.7rem;
     }
 
     .instructions {
-        top: 140px;
         font-size: 0.75rem;
         line-height: 1.6;
-        padding: 12px;
     }
 
     .add-vector-panel {
-        bottom: 60px;
         min-width: 240px;
-    }
-
-    .controls {
-        bottom: 12px;
     }
 
     .control-btn {
@@ -558,7 +564,6 @@ body {
     }
 
     .model-selector-container {
-        bottom: 12px;
         padding: 12px 18px;
         min-width: 320px;
     }
@@ -573,35 +578,15 @@ body {
     }
 }
 
-/* Responsive layout for smaller screens */
-@media (max-width: 1200px) {
-    .left-column {
-        position: absolute;
-        top: 24px;
-        left: 24px;
-        bottom: 24px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-    
-    .legend,
-    .instructions,
-    .add-vector-panel,
-    .controls {
-        position: static;
-    }
-    
-    .controls {
-        margin-top: 21px;
-    }
-}
-
 /* Tablet Responsiveness (iPad, etc.) */
 @media (max-width: 1200px) and (max-height: 900px) {
+    .left-column,
+    .right-column,
+    .bottom-column {
+        padding: 16px;
+    }
+
     .legend {
-        top: 16px;
-        left: 16px;
         padding: 16px;
         min-width: 200px;
     }
@@ -616,8 +601,6 @@ body {
     }
 
     .instructions {
-        top: 160px;
-        left: 16px;
         padding: 16px;
         min-width: 200px;
         font-size: 0.8125rem;
@@ -625,8 +608,6 @@ body {
     }
 
     .add-vector-panel {
-        bottom: 70px;
-        left: 16px;
         padding: 16px;
         min-width: 260px;
     }
@@ -643,8 +624,6 @@ body {
     }
 
     .controls {
-        bottom: 16px;
-        left: 16px;
         padding: 12px;
         gap: 6px;
     }
@@ -655,7 +634,6 @@ body {
     }
 
     .model-selector-container {
-        bottom: 16px;
         padding: 14px 20px;
         min-width: 360px;
     }
@@ -670,8 +648,6 @@ body {
     }
 
     .info-panel {
-        top: 16px;
-        right: 16px;
         padding: 18px;
         min-width: 280px;
         max-width: 340px;
