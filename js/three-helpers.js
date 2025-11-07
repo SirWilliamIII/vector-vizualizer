@@ -28,12 +28,31 @@ export function createVectorArrow(start, end, color, allVectorCoords = []) {
     const shaftMaterial = new THREE.MeshStandardMaterial({
         color: color,
         emissive: color,
-        emissiveIntensity: 0.4,
-        roughness: 0.3,
-        metalness: 0,
+        emissiveIntensity: 0.3,
+        roughness: 0.4,
+        metalness: 0.2,
         transparent: true,
         opacity: 0.95
     });
+
+    // Add edge glow via shader modification
+    shaftMaterial.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <output_fragment>',
+            `
+            // Fresnel edge glow
+            vec3 viewDirection = normalize(vViewPosition);
+            vec3 worldNormal = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+            float fresnel = pow(1.0 - abs(dot(viewDirection, worldNormal)), 2.0);
+
+            // Add subtle rim light
+            gl_FragColor.rgb += vec3(${((color >> 16) & 255) / 255}, ${((color >> 8) & 255) / 255}, ${(color & 255) / 255}) * fresnel * 0.3;
+
+            #include <output_fragment>
+            `
+        );
+    };
+
     const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
 
     // Sharp, minimal arrowhead - flows from tapered shaft
@@ -42,12 +61,31 @@ export function createVectorArrow(start, end, color, allVectorCoords = []) {
     const coneMaterial = new THREE.MeshStandardMaterial({
         color: color,
         emissive: color,
-        emissiveIntensity: 0.5,
-        roughness: 0.2,
-        metalness: 0,
+        emissiveIntensity: 0.4,
+        roughness: 0.3,
+        metalness: 0.2,
         transparent: true,
         opacity: 0.98
     });
+
+    // Add edge glow to cone as well
+    coneMaterial.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <output_fragment>',
+            `
+            // Fresnel edge glow
+            vec3 viewDirection = normalize(vViewPosition);
+            vec3 worldNormal = normalize((vec4(normal, 0.0) * viewMatrix).xyz);
+            float fresnel = pow(1.0 - abs(dot(viewDirection, worldNormal)), 2.5);
+
+            // Stronger glow on cone tip
+            gl_FragColor.rgb += vec3(${((color >> 16) & 255) / 255}, ${((color >> 8) & 255) / 255}, ${(color & 255) / 255}) * fresnel * 0.5;
+
+            #include <output_fragment>
+            `
+        );
+    };
+
     const cone = new THREE.Mesh(coneGeometry, coneMaterial);
     cone.position.y = shaftLength + coneHeight / 2;
 
@@ -115,21 +153,43 @@ export function createTextLabel(text, color) {
 
     // Modern, clean sans-serif font
     context.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
-    context.textAlign = 'center';
+    context.textAlign = 'left';
     context.textBaseline = 'middle';
+    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
 
-    // Subtle dark backdrop for readability (very minimal)
+    // Manual letter spacing for better readability
+    const letters = text.split('');
+    const letterSpacing = 6; // pixels between letters
+    let totalWidth = 0;
+
+    // Calculate total width with spacing
+    letters.forEach(letter => {
+        totalWidth += context.measureText(letter).width + letterSpacing;
+    });
+    totalWidth -= letterSpacing; // Remove trailing space
+
+    let xPos = 256 - totalWidth / 2;
+
+    // Draw with shadow backdrop
     context.shadowColor = 'rgba(10, 14, 39, 0.8)';
     context.shadowBlur = 16;
     context.shadowOffsetX = 0;
     context.shadowOffsetY = 0;
-    context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-    context.fillText(text, 256, 80);
 
-    // Add subtle colored glow
+    letters.forEach(letter => {
+        context.fillText(letter, xPos, 80);
+        xPos += context.measureText(letter).width + letterSpacing;
+    });
+
+    // Add subtle colored glow (redraw with glow)
+    xPos = 256 - totalWidth / 2;
     context.shadowColor = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.4)`;
     context.shadowBlur = 12;
-    context.fillText(text, 256, 80);
+
+    letters.forEach(letter => {
+        context.fillText(letter, xPos, 80);
+        xPos += context.measureText(letter).width + letterSpacing;
+    });
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;

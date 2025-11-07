@@ -23,6 +23,16 @@ export function magnitude(v) {
     return Math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2);
 }
 
+// Map a value from one range to another
+export function mapRange(value, inMin, inMax, outMin, outMax) {
+    return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
+}
+
+// Clamp a value between min and max
+export function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
 // Proper PCA for dimensionality reduction (384D -> 3D)
 export function pcaTo3D(embeddings) {
     const words = Object.keys(embeddings).filter(w => embeddings[w] !== null);

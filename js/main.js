@@ -10,7 +10,7 @@ import {
   createAngleArc,
   createDistanceAnnotation
 } from './three-helpers.js'
-import { cosineSimilarity, euclideanDistance } from './math-utils.js'
+import { cosineSimilarity, euclideanDistance, mapRange, clamp } from './math-utils.js'
 import { pcaTo3D } from './math-utils.js'
 import { initEmbeddingModel, getEmbedding, isModelReady, MODEL_CONFIGS, getCurrentModel } from './embeddings.js'
 import { updateInfoPanel, showStatus, clearStatus } from './ui.js'
@@ -25,7 +25,8 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 )
-camera.position.set(8, 8, 8)
+// Static position for intro animation
+camera.position.set(5, 5, 5)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -56,11 +57,80 @@ const connectionLines = []
 const annotations = [] // Track angle arcs and distance labels
 const vectorAnimations = new Map() // Track ongoing animations
 
-// Add grid
-const gridHelper = new THREE.GridHelper(20, 20, 0x3a4466, 0x1a1e33)
-gridHelper.material.opacity = 0.15
-gridHelper.material.transparent = true
+// Add radial gradient disc floor
+const discGeometry = new THREE.CircleGeometry(15, 64)
+const discMaterial = new THREE.ShaderMaterial({
+  transparent: true,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  uniforms: {
+    colorCenter: { value: new THREE.Color(0x040514) },
+    colorEdge: { value: new THREE.Color(0x0f1530) }
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 colorCenter;
+    uniform vec3 colorEdge;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 center = vec2(0.5, 0.5);
+      float dist = distance(vUv, center) * 2.0;
+      vec3 color = mix(colorCenter, colorEdge, dist);
+      float alpha = 0.4 * (1.0 - dist * 0.5);
+      gl_FragColor = vec4(color, alpha);
+    }
+  `
+})
+const gridHelper = new THREE.Mesh(discGeometry, discMaterial)
+gridHelper.rotation.x = -Math.PI / 2
+gridHelper.position.y = -0.01
 scene.add(gridHelper)
+
+// Add subtle shadow blob at origin for ambient occlusion effect
+const shadowGeometry = new THREE.CircleGeometry(1.2, 32)
+const shadowMaterial = new THREE.MeshBasicMaterial({
+  color: 0x000000,
+  transparent: true,
+  opacity: 0,
+  depthWrite: false
+})
+shadowMaterial.onBeforeCompile = (shader) => {
+  shader.fragmentShader = shader.fragmentShader.replace(
+    'void main() {',
+    `
+    varying vec2 vUv;
+    void main() {
+    `
+  )
+  shader.fragmentShader = shader.fragmentShader.replace(
+    'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+    `
+    vec2 center = vec2(0.5, 0.5);
+    float dist = distance(vUv, center) * 2.0;
+    float shadow = smoothstep(1.0, 0.0, dist);
+    gl_FragColor = vec4(0.0, 0.0, 0.0, shadow * 0.25);
+    `
+  )
+  shader.vertexShader = shader.vertexShader.replace(
+    'void main() {',
+    `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+    `
+  )
+}
+const originShadow = new THREE.Mesh(shadowGeometry, shadowMaterial)
+originShadow.rotation.x = -Math.PI / 2
+originShadow.position.y = 0.001
+scene.add(originShadow)
 
 // Create coordinate axes
 const axesGroup = new THREE.Group()
@@ -79,6 +149,21 @@ axesGroup.add(zAxis)
 addAxisLabel('Z', [0, 0, axisLength + 0.5], 0xffff00, axesGroup)
 
 scene.add(axesGroup)
+
+// Initialize 3D coordinates from embeddings using PCA
+console.log('Computing 3D coordinates from embeddings...')
+const projected3D = pcaTo3D(originalEmbeddings)
+if (projected3D && projected3D.length > 0) {
+  const nonNullWords = Object.keys(originalEmbeddings).filter(w => originalEmbeddings[w] !== null)
+  nonNullWords.forEach((w, i) => {
+    if (vectors[w]) {
+      vectors[w].coords = projected3D[i]
+    }
+  })
+  console.log(`Projected ${nonNullWords.length} vectors to 3D space`)
+} else {
+  console.warn('PCA failed, using placeholder coordinates')
+}
 
 // Create initial vectors
 const allCoords = Object.values(vectors).map(v => v.coords)
@@ -536,7 +621,8 @@ window.addEventListener('keydown', (event) => {
 
 // Control functions
 window.resetView = function () {
-  camera.position.set(8, 8, 8)
+  // Optimal for 14 curated vectors
+  camera.position.set(6, 6, 6)
   camera.lookAt(0, 0, 0)
   controls.reset()
 }
@@ -825,6 +911,45 @@ function animate() {
   requestAnimationFrame(animate)
   controls.update()
 
+  // Distance-based prominence for vectors and labels
+  const cameraPosition = camera.position
+
+  // Update vector arrow prominence
+  vectorMeshes.forEach((mesh) => {
+    if (mesh.userData.coords) {
+      const vectorPos = new THREE.Vector3(...mesh.userData.coords)
+      const distance = cameraPosition.distanceTo(vectorPos)
+
+      // Map distance to opacity (closer = more opaque)
+      // Near: 0-8 units -> opacity 1.0
+      // Far: 8-15 units -> opacity 0.3
+      const opacity = clamp(mapRange(distance, 5, 15, 1.0, 0.25), 0.25, 1.0)
+
+      // Apply to all materials in the vector group
+      mesh.traverse((child) => {
+        if (child.material) {
+          child.material.opacity = opacity
+          child.material.transparent = true
+        }
+      })
+    }
+  })
+
+  // Update label sprite prominence
+  Object.values(labelSprites).forEach((sprite) => {
+    if (sprite.userData.coords) {
+      const labelPos = new THREE.Vector3(...sprite.userData.coords)
+      const distance = cameraPosition.distanceTo(labelPos)
+
+      // Map distance to opacity and scale
+      const opacity = clamp(mapRange(distance, 5, 15, 1.0, 0.3), 0.3, 1.0)
+      const scale = clamp(mapRange(distance, 5, 15, 1.0, 0.6), 0.6, 1.0)
+
+      sprite.material.opacity = opacity
+      sprite.scale.setScalar(scale)
+    }
+  })
+
   // Animate connection lines
   connectionLines.forEach((line) => {
     if (line.userData.isAnimated && line.material.uniforms) {
@@ -842,6 +967,141 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight)
 })
 
+// Intro sequence: Vectors emerge from origin with stagger
+function runIntroSequence() {
+  // Disable OrbitControls during intro
+  controls.enabled = false
+
+  // Emergence sequence with narrative timing
+  // Structure: word, startTime (ms), duration (ms), isFeatured
+  // Pattern: Start slow and deliberate, accelerate as viewer understands the concept
+  const emergenceSequence = [
+    // Royalty pair - slowest, sets the pace
+    { word: 'king', start: 0, duration: 700, featured: true },
+    { word: 'queen', start: 600, duration: 700, featured: true },
+
+    // Gender pair - slightly quicker
+    { word: 'man', start: 1500, duration: 600, featured: true },
+    { word: 'woman', start: 2000, duration: 600, featured: true },
+
+    // Animals - faster still
+    { word: 'dog', start: 2700, duration: 500, featured: true },
+    { word: 'cat', start: 3100, duration: 500, featured: true },
+    { word: 'bird', start: 3500, duration: 500, featured: false },
+
+    // Emotions - picking up speed
+    { word: 'happy', start: 4000, duration: 400, featured: true },
+    { word: 'sad', start: 4300, duration: 400, featured: true },
+    { word: 'angry', start: 4600, duration: 400, featured: false },
+
+    // Tech concepts - rapid
+    { word: 'computer', start: 5000, duration: 350, featured: true },
+    { word: 'code', start: 5300, duration: 350, featured: true },
+
+    // Nature background - quickest finish
+    { word: 'tree', start: 5650, duration: 300, featured: false },
+    { word: 'ocean', start: 5900, duration: 300, featured: false },
+  ]
+
+  let introActive = true
+  const startTime = Date.now()
+
+  // Initially hide all vectors at scale 0
+  Object.values(vectorObjects).forEach(obj => {
+    obj.scale.set(0, 0, 0)
+  })
+  Object.values(labelSprites).forEach(sprite => {
+    sprite.scale.set(0, 0, 0)
+  })
+
+  // Easing function (ease-out-back for bounce effect)
+  function easeOutBack(t) {
+    const c1 = 1.70158
+    const c3 = c1 + 1
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2)
+  }
+
+  function cancelIntro() {
+    if (!introActive) return
+    introActive = false
+    controls.enabled = true
+
+    // Instantly show all vectors at full scale
+    emergenceSequence.forEach(({ word, featured }) => {
+      if (vectorObjects[word]) {
+        vectorObjects[word].scale.set(1, 1, 1)
+        vectorObjects[word].traverse(child => {
+          if (child.material) {
+            child.material.opacity = featured ? 0.95 : 0.35
+          }
+        })
+      }
+
+      if (labelSprites[word]) {
+        labelSprites[word].scale.set(1.6, 0.8, 1)
+        labelSprites[word].material.opacity = featured ? 0.9 : 0.3
+      }
+    })
+
+    // Remove listeners
+    window.removeEventListener('click', cancelIntro)
+    window.removeEventListener('keydown', cancelIntro)
+    window.removeEventListener('wheel', cancelIntro)
+  }
+
+  // Skip intro on intentional user interaction
+  window.addEventListener('click', cancelIntro, { once: true })
+  window.addEventListener('keydown', cancelIntro, { once: true })
+  window.addEventListener('wheel', cancelIntro, { once: true })
+
+  function animateVectors() {
+    if (!introActive) return
+
+    const elapsed = Date.now() - startTime
+
+    // Animate each vector according to the sequence
+    emergenceSequence.forEach(({ word, start, duration, featured }) => {
+      const vectorElapsed = elapsed - start
+
+      if (vectorElapsed > 0) {
+        const progress = Math.min(vectorElapsed / duration, 1)
+        const eased = easeOutBack(progress)
+        const scale = eased
+
+        const targetOpacity = featured ? 0.95 : 0.35
+        const targetLabelOpacity = featured ? 0.9 : 0.3
+
+        if (vectorObjects[word]) {
+          vectorObjects[word].scale.set(scale, scale, scale)
+          vectorObjects[word].traverse(child => {
+            if (child.material) {
+              child.material.opacity = targetOpacity * progress
+            }
+          })
+        }
+
+        if (labelSprites[word]) {
+          const labelScale = 1.6 * eased
+          labelSprites[word].scale.set(labelScale, labelScale * 0.5, 1)
+          labelSprites[word].material.opacity = targetLabelOpacity * progress
+        }
+      }
+    })
+
+    // Check if animation is complete (last vector start + duration)
+    const lastVector = emergenceSequence[emergenceSequence.length - 1]
+    const totalDuration = lastVector.start + lastVector.duration
+
+    if (elapsed < totalDuration) {
+      requestAnimationFrame(animateVectors)
+    } else {
+      cancelIntro()
+    }
+  }
+
+  requestAnimationFrame(animateVectors)
+}
+
 // Start
-updateInfoPanel(selectedVectors)
+runIntroSequence()
 animate()
