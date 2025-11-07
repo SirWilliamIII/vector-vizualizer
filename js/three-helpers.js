@@ -24,15 +24,19 @@ export function createVectorArrow(start, end, color, allVectorCoords = []) {
 
     // Tapered shaft - gracefully flows toward arrowhead
     const shaftLength = length * 0.88;
-    const shaftGeometry = new THREE.CylinderGeometry(thickThickness, thinThickness, shaftLength, 16);
-    const shaftMaterial = new THREE.MeshStandardMaterial({
-        color: color,
-        emissive: color,
-        emissiveIntensity: 0.3,
-        roughness: 0.4,
-        metalness: 0.2,
+    const shaftGeometry = new THREE.CylinderGeometry(thickThickness, thinThickness, shaftLength, 32, 1, true);
+    const shaftMaterial = new THREE.MeshPhysicalMaterial({
+        color,
+        emissive: new THREE.Color(color).multiplyScalar(0.35),
+        emissiveIntensity: 0.4,
+        roughness: 0.25,
+        metalness: 0.65,
+        transmission: 0.25,
+        thickness: 1.1,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.1,
         transparent: true,
-        opacity: 0.95
+        opacity: 0.92
     });
 
     // Add edge glow via shader modification
@@ -57,13 +61,17 @@ export function createVectorArrow(start, end, color, allVectorCoords = []) {
 
     // Sharp, minimal arrowhead - flows from tapered shaft
     const coneHeight = length * 0.12;
-    const coneGeometry = new THREE.ConeGeometry(thickThickness * 1.8, coneHeight, 16);
-    const coneMaterial = new THREE.MeshStandardMaterial({
-        color: color,
-        emissive: color,
-        emissiveIntensity: 0.4,
-        roughness: 0.3,
-        metalness: 0.2,
+    const coneGeometry = new THREE.ConeGeometry(thickThickness * 1.9, coneHeight, 32, 1, true);
+    const coneMaterial = new THREE.MeshPhysicalMaterial({
+        color,
+        emissive: new THREE.Color(color).multiplyScalar(0.45),
+        emissiveIntensity: 0.5,
+        roughness: 0.2,
+        metalness: 0.55,
+        transmission: 0.35,
+        thickness: 1.2,
+        clearcoat: 0.7,
+        clearcoatRoughness: 0.08,
         transparent: true,
         opacity: 0.98
     });
@@ -93,6 +101,47 @@ export function createVectorArrow(start, end, color, allVectorCoords = []) {
 
     arrow.add(shaft);
     arrow.add(cone);
+
+    const glowGeometry = new THREE.CylinderGeometry(thickThickness * 1.4, thinThickness * 1.2, shaftLength, 32, 1, true);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.25,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow.position.y = shaftLength / 2;
+    arrow.add(glow);
+
+    const baseGlowGeometry = new THREE.RingGeometry(thickThickness * 2.2, thickThickness * 3.1, 32);
+    const baseGlowMaterial = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.35,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+        depthWrite: false
+    });
+    const baseGlow = new THREE.Mesh(baseGlowGeometry, baseGlowMaterial);
+    baseGlow.rotation.x = -Math.PI / 2;
+    baseGlow.position.y = 0.01;
+    arrow.add(baseGlow);
+
+    const registerPart = (mesh, part) => {
+        mesh.userData.part = part;
+        mesh.userData.baseScale = mesh.scale.clone();
+        if (mesh.material && typeof mesh.material.opacity === 'number') {
+            mesh.userData.baseOpacity = mesh.material.opacity;
+        } else {
+            mesh.userData.baseOpacity = 1;
+        }
+    };
+
+    registerPart(shaft, 'shaft');
+    registerPart(cone, 'cone');
+    registerPart(glow, 'glow');
+    registerPart(baseGlow, 'baseGlow');
 
     // Add invisible hitbox for easier clicking - dynamically sized based on proximity
     let hitboxMultiplier = 10; // Default: large hitbox
@@ -207,6 +256,7 @@ export function createTextLabel(text, color) {
     });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.scale.set(2, 1, 1);
+    sprite.userData.baseScale = sprite.scale.clone();
 
     return sprite;
 }
@@ -214,51 +264,61 @@ export function createTextLabel(text, color) {
 export function createConnectionLine(start, end, color) {
     const startVec = new THREE.Vector3(...start);
     const endVec = new THREE.Vector3(...end);
-    const distance = startVec.distanceTo(endVec);
-    
-    // Create tube geometry for better visual appearance
     const curve = new THREE.LineCurve3(startVec, endVec);
-    const tubeGeometry = new THREE.TubeGeometry(curve, 20, 0.015, 8, false);
-    
-    // Custom shader material for animated gradient
-    const material = new THREE.ShaderMaterial({
+
+    const coreGeometry = new THREE.TubeGeometry(curve, 48, 0.016, 32, false);
+    const glowGeometry = new THREE.TubeGeometry(curve, 48, 0.038, 32, false);
+
+    const coreMaterial = new THREE.ShaderMaterial({
         uniforms: {
             time: { value: 0 },
-            color1: { value: new THREE.Color(color) },
-            color2: { value: new THREE.Color(color).multiplyScalar(0.3) }
+            colorMain: { value: new THREE.Color(color) },
+            colorGlow: { value: new THREE.Color(color).multiplyScalar(1.2) }
         },
         vertexShader: `
-            varying vec2 vUv;
+            varying float vAlong;
             void main() {
-                vUv = uv;
+                vAlong = uv.x;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `,
         fragmentShader: `
             uniform float time;
-            uniform vec3 color1;
-            uniform vec3 color2;
-            varying vec2 vUv;
-            
+            uniform vec3 colorMain;
+            uniform vec3 colorGlow;
+            varying float vAlong;
+
             void main() {
-                // Animated gradient flow
-                float flow = fract(vUv.x * 2.0 - time * 0.5);
-                float pulse = sin(flow * 3.14159) * 0.5 + 0.5;
-                
-                vec3 color = mix(color2, color1, pulse);
-                float alpha = 0.6 + pulse * 0.3;
-                
+                float pulse = 0.55 + 0.45 * sin((vAlong * 6.28318) - time * 1.5);
+                vec3 color = mix(colorMain, colorGlow, pulse);
+                float alpha = 0.75 + 0.15 * pulse;
                 gl_FragColor = vec4(color, alpha);
             }
         `,
         transparent: true,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        depthWrite: false
     });
-    
-    const tube = new THREE.Mesh(tubeGeometry, material);
-    tube.userData.isAnimated = true;
-    
-    return tube;
+
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.22,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+
+    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+
+    const group = new THREE.Group();
+    group.add(glow);
+    group.add(core);
+
+    group.userData.isAnimated = true;
+    group.userData.animatedMaterial = coreMaterial;
+
+    return group;
 }
 
 export function createAxisArrow(start, end, color, thickness) {
@@ -317,17 +377,16 @@ export function createAngleArc(start, end, color, angleDegrees) {
     const angleRad = Math.acos(v1.normalize().dot(v2.normalize()));
     const radius = Math.min(v1.length(), v2.length()) * 0.45;
     
-    const segments = 32;
+    const segments = 48;
     const points = [];
     
     v1.normalize();
     v2.normalize();
     
+    const axis = new THREE.Vector3().crossVectors(v1, v2).normalize();
     for (let i = 0; i <= segments; i++) {
         const t = i / segments;
         const currentAngle = angleRad * t;
-        
-        const axis = new THREE.Vector3().crossVectors(v1, v2).normalize();
         const rotatedVector = v1.clone().applyAxisAngle(axis, currentAngle);
         points.push(rotatedVector.multiplyScalar(radius));
     }
@@ -336,45 +395,73 @@ export function createAngleArc(start, end, color, angleDegrees) {
     const arcMaterial = new THREE.LineBasicMaterial({
         color: color,
         transparent: true,
-        opacity: 0.8,
-        linewidth: 3
+        opacity: 0.9,
+        linewidth: 2
     });
     const arc = new THREE.Line(arcGeometry, arcMaterial);
     group.add(arc);
     
-    const tubeGeometry = new THREE.TubeGeometry(
+    const glowGeometry = new THREE.TubeGeometry(
         new THREE.CatmullRomCurve3(points),
         segments,
-        0.03,
-        8,
+        0.02,
+        16,
         false
     );
-    const tubeMaterial = new THREE.MeshBasicMaterial({
+    const glowMaterial = new THREE.MeshBasicMaterial({
         color: color,
         transparent: true,
-        opacity: 0.7
+        opacity: 0.25,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
     });
-    const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
-    group.add(tube);
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    group.add(glow);
     
     const midAngle = angleRad / 2;
-    const axis = new THREE.Vector3().crossVectors(v1, v2).normalize();
-    const labelPos = v1.clone().applyAxisAngle(axis, midAngle).multiplyScalar(radius * 2.2);
+    const labelPos = v1.clone().applyAxisAngle(axis, midAngle).multiplyScalar(radius * 2.1);
     
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    const scale = 2;
+    const scale = 3;
     canvas.width = 256 * scale;
     canvas.height = 128 * scale;
     context.scale(scale, scale);
     
+    const labelWidth = 180;
+    const labelHeight = 68;
+    const labelX = (256 - labelWidth) / 2;
+    const labelY = (128 - labelHeight) / 2;
+    
+    const accent = new THREE.Color(color);
+    const accentRGB = {
+        r: Math.round(accent.r * 255),
+        g: Math.round(accent.g * 255),
+        b: Math.round(accent.b * 255)
+    };
+
     context.clearRect(0, 0, 256, 128);
-    context.font = 'bold 32px -apple-system, sans-serif';
-    context.fillStyle = '#cccccc';
+    context.beginPath();
+    context.moveTo(labelX + 20, labelY);
+    context.lineTo(labelX + labelWidth - 20, labelY);
+    context.quadraticCurveTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + 20);
+    context.lineTo(labelX + labelWidth, labelY + labelHeight - 20);
+    context.quadraticCurveTo(labelX + labelWidth, labelY + labelHeight, labelX + labelWidth - 20, labelY + labelHeight);
+    context.lineTo(labelX + 20, labelY + labelHeight);
+    context.quadraticCurveTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - 20);
+    context.lineTo(labelX, labelY + 20);
+    context.quadraticCurveTo(labelX, labelY, labelX + 20, labelY);
+    context.closePath();
+    context.fillStyle = `rgba(${accentRGB.r}, ${accentRGB.g}, ${accentRGB.b}, 0.18)`;
+    context.strokeStyle = `rgba(${accentRGB.r}, ${accentRGB.g}, ${accentRGB.b}, 0.45)`;
+    context.lineWidth = 3;
+    context.fill();
+    context.stroke();
+    
+    context.font = '600 32px -apple-system, sans-serif';
+    context.fillStyle = '#f8fafc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.shadowColor = 'rgba(0, 0, 0, 0.8)';
-    context.shadowBlur = 8;
     context.fillText(`${angleDegrees.toFixed(1)}°`, 128, 64);
     
     const texture = new THREE.CanvasTexture(canvas);
@@ -384,17 +471,35 @@ export function createAngleArc(start, end, color, angleDegrees) {
     const spriteMaterial = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
-        opacity: 0.95
+        opacity: 0.95,
+        depthTest: true,
+        depthWrite: false
     });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.position.copy(labelPos);
-    sprite.scale.set(1.5, 0.75, 1);
+    sprite.scale.set(1.6, 0.8, 1);
+    sprite.userData.depthResponsive = true;
+    sprite.userData.baseScale = sprite.scale.clone();
+    sprite.userData.baseOpacity = spriteMaterial.opacity;
     group.add(sprite);
+    
+    const anchorPoint = v1.clone().applyAxisAngle(axis, midAngle).multiplyScalar(radius * 1.05);
+    const leaderGeometry = new THREE.BufferGeometry().setFromPoints([
+        labelPos.clone().lerp(anchorPoint, 0.25),
+        anchorPoint
+    ]);
+    const leaderMaterial = new THREE.LineBasicMaterial({
+        color: 0xe2e8f0,
+        transparent: true,
+        opacity: 0.45
+    });
+    const leaderLine = new THREE.Line(leaderGeometry, leaderMaterial);
+    group.add(leaderLine);
     
     return group;
 }
 
-export function createDistanceAnnotation(start, end, distance, type = 'euclidean') {
+export function createDistanceAnnotation(start, end, distance, type = 'euclidean', color = 0xffffff) {
     const group = new THREE.Group();
     
     const startVec = new THREE.Vector3(...start);
@@ -413,24 +518,40 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     context.imageSmoothingQuality = 'high';
     
     const distanceText = distance.toFixed(3);
-    const chars = distanceText.split('');
+    const accent = new THREE.Color(color);
+    const accentRGB = {
+        r: Math.round(accent.r * 255),
+        g: Math.round(accent.g * 255),
+        b: Math.round(accent.b * 255)
+    };
+
+    const labelWidth = 320;
+    const labelHeight = 90;
+    const labelX = (512 - labelWidth) / 2;
+    const labelY = (128 - labelHeight) / 2;
     
-    context.font = 'bold 52px -apple-system, BlinkMacSystemFont, sans-serif';
-    context.fillStyle = '#cccccc';
+    context.beginPath();
+    context.moveTo(labelX + 28, labelY);
+    context.lineTo(labelX + labelWidth - 28, labelY);
+    context.quadraticCurveTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + 28);
+    context.lineTo(labelX + labelWidth, labelY + labelHeight - 28);
+    context.quadraticCurveTo(labelX + labelWidth, labelY + labelHeight, labelX + labelWidth - 28, labelY + labelHeight);
+    context.lineTo(labelX + 28, labelY + labelHeight);
+    context.quadraticCurveTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - 28);
+    context.lineTo(labelX, labelY + 28);
+    context.quadraticCurveTo(labelX, labelY, labelX + 28, labelY);
+    context.closePath();
+    context.fillStyle = `rgba(${accentRGB.r}, ${accentRGB.g}, ${accentRGB.b}, 0.16)`;
+    context.strokeStyle = `rgba(${accentRGB.r}, ${accentRGB.g}, ${accentRGB.b}, 0.45)`;
+    context.lineWidth = 3;
+    context.fill();
+    context.stroke();
+    
+    context.font = '600 64px -apple-system, BlinkMacSystemFont, sans-serif';
+    context.fillStyle = '#f8fafc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.shadowColor = 'rgba(0, 0, 0, 0.8)';
-    context.shadowBlur = 12;
-    
-    const charSpacing = 10;
-    const totalWidth = context.measureText(distanceText).width + (chars.length - 1) * charSpacing;
-    let xPos = 256 - totalWidth / 2;
-    
-    chars.forEach((char, i) => {
-        const charWidth = context.measureText(char).width;
-        context.fillText(char, xPos + charWidth / 2, 64);
-        xPos += charWidth + charSpacing;
-    });
+    context.fillText(distanceText, 256, 64);
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
@@ -454,44 +575,84 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
         perpendicular.crossVectors(direction, new THREE.Vector3(1, 0, 0)).normalize();
     }
     
-    const offset = perpendicular.multiplyScalar(1.8);
+    const offset = perpendicular.multiplyScalar(2.2);
     sprite.position.copy(midpoint).add(offset);
-    sprite.scale.set(2, 1, 1);
+    sprite.scale.set(2.2, 1.1, 1);
     sprite.renderOrder = 999;
+    sprite.userData.depthResponsive = true;
+    sprite.userData.baseScale = sprite.scale.clone();
+    sprite.userData.baseOpacity = spriteMaterial.opacity;
     group.add(sprite);
     
-    const tickMaterial = new THREE.LineBasicMaterial({
-        color: 0xffffff,
+    const connectorMaterial = new THREE.LineBasicMaterial({
+        color,
         transparent: true,
         opacity: 0.6
     });
+    const connectorStart = midpoint.clone().add(perpendicular.clone().multiplyScalar(0.4));
+    const connectorGeometry = new THREE.BufferGeometry().setFromPoints([
+        connectorStart,
+        sprite.position.clone().sub(perpendicular.clone().multiplyScalar(0.6))
+    ]);
+    const connectorLine = new THREE.Line(connectorGeometry, connectorMaterial);
+    group.add(connectorLine);
     
-    const tickDir = perpendicular.clone().normalize();
-    const startTick1 = startVec.clone().add(tickDir.clone().multiplyScalar(1.5));
-    const startTick2 = startVec.clone().add(tickDir.clone().multiplyScalar(2.1));
-    const startTickGeometry = new THREE.BufferGeometry().setFromPoints([startTick1, startTick2]);
-    const startTickLine = new THREE.Line(startTickGeometry, tickMaterial);
-    group.add(startTickLine);
+    return group;
+}
+
+export function createComparisonPlate(start, end) {
+    const origin = new THREE.Vector3(0, 0, 0);
+    const v1 = new THREE.Vector3(...start);
+    const v2 = new THREE.Vector3(...end);
+    const centroid = new THREE.Vector3().add(origin).add(v1).add(v2).divideScalar(3);
+    const normal = new THREE.Vector3().crossVectors(v1, v2).normalize();
+    if (normal.length() < 0.001) {
+        normal.set(0, 0, 1);
+    }
     
-    const endTick1 = endVec.clone().add(tickDir.clone().multiplyScalar(1.5));
-    const endTick2 = endVec.clone().add(tickDir.clone().multiplyScalar(2.1));
-    const endTickGeometry = new THREE.BufferGeometry().setFromPoints([endTick1, endTick2]);
-    const endTickLine = new THREE.Line(endTickGeometry, tickMaterial);
-    group.add(endTickLine);
-    
-    const guideStart = startVec.clone().add(tickDir.clone().multiplyScalar(1.8));
-    const guideEnd = endVec.clone().add(tickDir.clone().multiplyScalar(1.8));
-    const guideGeometry = new THREE.BufferGeometry().setFromPoints([guideStart, guideEnd]);
-    const guideMaterial = new THREE.LineDashedMaterial({
-        color: 0xffffff,
+    const maxLen = Math.max(v1.length(), v2.length());
+    const plateGeometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+    const plateMaterial = new THREE.MeshBasicMaterial({
+        color: 0x0a0f20,
         transparent: true,
-        opacity: 0.3,
-        dashSize: 0.1,
-        gapSize: 0.1
+        opacity: 0.22,
+        side: THREE.DoubleSide,
+        depthWrite: false
     });
-    const guideLine = new THREE.Line(guideGeometry, guideMaterial);
-    guideLine.computeLineDistances();
-    group.add(guideLine);
+    const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+    plate.position.copy(centroid);
+    plate.scale.set(maxLen * 1.4, maxLen * 1.1, 1);
+    plate.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    plate.renderOrder = -5;
+    
+    return plate;
+}
+
+export function createTipBadge(position, color) {
+    const group = new THREE.Group();
+    
+    const coreGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+    const coreMaterial = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.95
+    });
+    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    group.add(core);
+    
+    const glowGeometry = new THREE.SphereGeometry(0.16, 16, 16);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color: color,
+        transparent: true,
+        opacity: 0.25,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    group.add(glow);
+    
+    group.position.set(position[0], position[1], position[2]);
+    group.renderOrder = 999;
     
     return group;
 }

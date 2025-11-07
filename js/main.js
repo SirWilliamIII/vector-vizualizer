@@ -8,7 +8,9 @@ import {
   createAxisArrow,
   addAxisLabel,
   createAngleArc,
-  createDistanceAnnotation
+  createDistanceAnnotation,
+  createComparisonPlate,
+  createTipBadge
 } from './three-helpers.js'
 import { cosineSimilarity, euclideanDistance, mapRange, clamp } from './math-utils.js'
 import { pcaTo3D } from './math-utils.js'
@@ -21,18 +23,21 @@ scene.background = new THREE.Color(0x0a0e27)
 
 const camera = new THREE.PerspectiveCamera(
   75,
-  window.innerWidth / window.innerHeight,
+  1,
   0.1,
   1000
 )
 // Static position for intro animation
 camera.position.set(5, 5, 5)
 
+const canvasContainer = document.getElementById('canvas-container')
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false })
-renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 const maxAnisotropy = renderer.capabilities.getMaxAnisotropy()
-document.getElementById('canvas-container').appendChild(renderer.domElement)
+canvasContainer.appendChild(renderer.domElement)
+camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight
+camera.updateProjectionMatrix()
 
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
@@ -52,10 +57,29 @@ let selectedVectors = []
 const vectorObjects = {}
 const labelSprites = {}
 const vectorMeshes = []
+const vectorGroups = []
 const labelSpritesList = []
 const connectionLines = []
 const annotations = [] // Track angle arcs and distance labels
 const vectorAnimations = new Map() // Track ongoing animations
+let lastHoveredVector = null
+
+function setLabelBasePosition(label, coords, multiplier = 1.1) {
+  const basePos = new THREE.Vector3(
+    coords[0] * multiplier,
+    coords[1] * multiplier,
+    coords[2] * multiplier
+  )
+  label.position.copy(basePos)
+  label.userData.basePosition = basePos.clone()
+  if (label.userData) {
+    label.userData.coords = coords
+  }
+  label.userData.offsetSeed = Math.sign(coords[0]) || (Math.random() > 0.5 ? 1 : -1)
+  if (!label.userData.baseScale) {
+    label.userData.baseScale = label.scale.clone()
+  }
+}
 
 // Add radial gradient disc floor
 const discGeometry = new THREE.CircleGeometry(15, 64)
@@ -172,6 +196,7 @@ Object.entries(vectors).forEach(([name, data]) => {
   arrow.userData = { name, coords: data.coords, color: data.color }
   scene.add(arrow)
   vectorObjects[name] = arrow
+  vectorGroups.push(arrow)
 
   arrow.children.forEach((mesh) => {
     mesh.userData = { name, coords: data.coords, color: data.color }
@@ -179,9 +204,8 @@ Object.entries(vectors).forEach(([name, data]) => {
   })
 
   const label = createTextLabel(name, data.color)
-  const pos = data.coords
-  label.position.set(pos[0] * 1.1, pos[1] * 1.1, pos[2] * 1.1)
-  label.userData = { name, coords: data.coords, color: data.color }
+  label.userData = { name, coords: data.coords, color: data.color, isHovered: false }
+  setLabelBasePosition(label, data.coords)
   scene.add(label)
   labelSprites[name] = label
   labelSpritesList.push(label)
@@ -210,26 +234,38 @@ raycaster.params.Line.threshold = 0.2
 raycaster.params.Points.threshold = 0.2
 const mouse = new THREE.Vector2()
 
+function updatePointerFromEvent(event) {
+  const rect = renderer.domElement.getBoundingClientRect()
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+}
+
 function onMouseMove(event) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+  updatePointerFromEvent(event)
 
   raycaster.setFromCamera(mouse, camera)
   const meshIntersects = raycaster.intersectObjects(vectorMeshes)
   const labelIntersects = raycaster.intersectObjects(labelSpritesList)
 
   // Reset all meshes to default state
-  vectorMeshes.forEach((mesh) => {
-    if (mesh.userData.isHitbox || selectedVectors.includes(mesh.userData.name)) return
-    mesh.material.emissiveIntensity = 0.15
-    mesh.material.opacity = 0.95
+  vectorGroups.forEach((arrow) => {
+    if (!arrow.userData) return
+    const name = arrow.userData.name
+    if (selectedVectors.includes(name) || name === lastHoveredVector) return
+
+    arrow.children.forEach((child) => {
+      if (!child.material || child.userData?.isHitbox) return
+      child.material.emissiveIntensity = 0.25
+      if (child.userData?.baseOpacity !== undefined) {
+        child.material.opacity = child.userData.baseOpacity
+      }
+    })
   })
 
-  // Reset all labels to default state
+  // Reset all labels hover state
   labelSpritesList.forEach((label) => {
     if (selectedVectors.includes(label.userData.name)) return
-    label.material.opacity = 0.95
-    label.scale.set(2, 1, 1)
+    label.userData.isHovered = false
   })
 
   // Handle mesh hover
@@ -237,20 +273,23 @@ function onMouseMove(event) {
     const mesh = meshIntersects[0].object
     const name = mesh.userData.name
     if (!selectedVectors.includes(name)) {
+      lastHoveredVector = name
       // Highlight visible meshes of this vector (skip hitbox)
       const arrow = vectorObjects[name]
       if (arrow) {
         arrow.children.forEach((child) => {
-          if (!child.userData.isHitbox) {
-            child.material.emissiveIntensity = 0.5
-            child.material.opacity = 1
+          if (!child.userData.isHitbox && child.material) {
+            child.material.emissiveIntensity = 0.85
+            if (child.userData?.baseOpacity !== undefined) {
+              child.material.opacity = clamp(child.userData.baseOpacity * 1.1, 0, 1)
+            } else {
+              child.material.opacity = 1
+            }
           }
         })
       }
-      // Also highlight the label
       if (labelSprites[name]) {
-        labelSprites[name].material.opacity = 1
-        labelSprites[name].scale.set(2.1, 1.05, 1)
+        labelSprites[name].userData.isHovered = true
       }
     }
     document.body.style.cursor = 'pointer'
@@ -260,26 +299,32 @@ function onMouseMove(event) {
     const label = labelIntersects[0].object
     const name = label.userData.name
     if (!selectedVectors.includes(name)) {
-      label.material.opacity = 1
-      label.scale.set(2.1, 1.05, 1)
-      // Also highlight the vector mesh
+      lastHoveredVector = name
+      label.userData.isHovered = true
+
       const arrow = vectorObjects[name]
       if (arrow) {
-        arrow.children.forEach((mesh) => {
-          mesh.material.emissiveIntensity = 0.5
-          mesh.material.opacity = 1
+        arrow.children.forEach((child) => {
+          if (!child.userData.isHitbox && child.material) {
+            child.material.emissiveIntensity = 0.85
+            if (child.userData?.baseOpacity !== undefined) {
+              child.material.opacity = clamp(child.userData.baseOpacity * 1.1, 0, 1)
+            } else {
+              child.material.opacity = 1
+            }
+          }
         })
       }
     }
     document.body.style.cursor = 'pointer'
   } else {
     document.body.style.cursor = 'default'
+    lastHoveredVector = null
   }
 }
 
 function onMouseClick(event) {
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+  updatePointerFromEvent(event)
 
   raycaster.setFromCamera(mouse, camera)
   const meshIntersects = raycaster.intersectObjects(vectorMeshes)
@@ -292,6 +337,10 @@ function onMouseClick(event) {
     name = meshIntersects[0].object.userData.name
   } else if (labelIntersects.length > 0) {
     name = labelIntersects[0].object.userData.name
+  }
+
+  if (!name && lastHoveredVector) {
+    name = lastHoveredVector
   }
 
   if (name) {
@@ -360,6 +409,56 @@ function animateVector(mesh, targetProps, duration = 400) {
   vectorAnimations.set(animationId, requestAnimationFrame(animate))
 }
 
+function softReveal(object, duration = 450) {
+  if (!object) return
+  const startScale = object.scale.clone()
+  const hiddenScale = startScale.clone().multiplyScalar(0.05)
+  object.scale.copy(hiddenScale)
+
+  const materialTargets = []
+  const registerMaterial = (mat) => {
+    if (!mat || mat.__softRevealRegistered) return
+    materialTargets.push({ mat, target: mat.opacity ?? 1 })
+    if (typeof mat.opacity === 'number') {
+      mat.opacity = 0
+      mat.transparent = true
+    }
+    mat.__softRevealRegistered = true
+  }
+
+  if (object.material) registerMaterial(object.material)
+  if (object.traverse) {
+    object.traverse((child) => {
+      if (child.material) registerMaterial(child.material)
+    })
+  }
+
+  const startTime = performance.now()
+
+  function animate() {
+    const progress = Math.min((performance.now() - startTime) / duration, 1)
+    const eased =
+      progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2
+
+    object.scale.lerpVectors(hiddenScale, startScale, eased)
+    materialTargets.forEach(({ mat, target }) => {
+      if (typeof target === 'number') {
+        mat.opacity = target * eased
+      }
+    })
+
+    if (progress < 1) {
+      requestAnimationFrame(animate)
+    } else {
+      materialTargets.forEach(({ mat }) => {
+        delete mat.__softRevealRegistered
+      })
+    }
+  }
+
+  requestAnimationFrame(animate)
+}
+
 function updateSelection() {
   const hasSelection = selectedVectors.length > 0
   const twoSelected = selectedVectors.length === 2
@@ -368,11 +467,9 @@ function updateSelection() {
   if (twoSelected) {
     axesGroup.visible = false
     gridHelper.visible = false
-    document.querySelector('.bottom-column').style.display = 'none'
   } else {
     axesGroup.visible = true
     gridHelper.visible = true
-    document.querySelector('.bottom-column').style.display = 'flex'
   }
 
   vectorMeshes.forEach((mesh) => {
@@ -484,7 +581,20 @@ function updateSelection() {
   if (selectedVectors.length === 2) {
     const coords1 = vectors[selectedVectors[0]].coords
     const coords2 = vectors[selectedVectors[1]].coords
-    const similarity = cosineSimilarity(coords1, coords2)
+    const similarityValue = cosineSimilarity(coords1, coords2)
+    const similarity = Math.abs(similarityValue)
+
+    const comparisonPlate = createComparisonPlate(coords1, coords2)
+    scene.add(comparisonPlate)
+    annotations.push(comparisonPlate)
+    softReveal(comparisonPlate)
+    const badge1 = createTipBadge(coords1, vectors[selectedVectors[0]].color)
+    const badge2 = createTipBadge(coords2, vectors[selectedVectors[1]].color)
+    scene.add(badge1)
+    scene.add(badge2)
+    annotations.push(badge1, badge2)
+    softReveal(badge1, 320)
+    softReveal(badge2, 320)
 
     const color = similarity > 0.7 ? 0x4ade80 : similarity > 0.3 ? 0xfbbf24 : 0xf87171
     const line = createConnectionLine(coords1, coords2, color)
@@ -512,7 +622,8 @@ function updateSelection() {
       coords1,
       coords2,
       euclideanDist,
-      'euclidean'
+      'euclidean',
+      color
     )
     scene.add(distAnnotation)
     annotations.push(distAnnotation)
@@ -726,6 +837,7 @@ window.addCustomVector = async function () {
     arrow.userData = { name: word, coords: data.coords, color: data.color }
     scene.add(arrow)
     vectorObjects[word] = arrow
+    vectorGroups.push(arrow)
 
     arrow.children.forEach((mesh) => {
       mesh.userData = { name: word, coords: data.coords, color: data.color }
@@ -733,9 +845,8 @@ window.addCustomVector = async function () {
     })
 
     const label = createTextLabel(word, data.color)
-    const pos = data.coords
-    label.position.set(pos[0] * 1.1, pos[1] * 1.1, pos[2] * 1.1)
-    label.userData = { name: word, coords: data.coords, color: data.color }
+    label.userData = { name: word, coords: data.coords, color: data.color, isHovered: false }
+    setLabelBasePosition(label, data.coords)
     scene.add(label)
     labelSprites[word] = label
     labelSpritesList.push(label)
@@ -751,6 +862,12 @@ window.addCustomVector = async function () {
         newArrow.userData = { name, coords: newCoords, color: vectors[name].color }
         scene.add(newArrow)
         vectorObjects[name] = newArrow
+        const groupIdx = vectorGroups.indexOf(obj)
+        if (groupIdx > -1) {
+          vectorGroups[groupIdx] = newArrow
+        } else {
+          vectorGroups.push(newArrow)
+        }
 
         const oldMeshes = vectorMeshes.filter((m) => m.userData.name === name)
         oldMeshes.forEach((m) => {
@@ -763,11 +880,7 @@ window.addCustomVector = async function () {
           vectorMeshes.push(mesh)
         })
 
-        labelSprites[name].position.set(
-          newCoords[0] * 1.1,
-          newCoords[1] * 1.1,
-          newCoords[2] * 1.1
-        )
+        setLabelBasePosition(labelSprites[name], newCoords)
       }
     })
 
@@ -797,6 +910,8 @@ window.clearCustomVectors = function () {
 
   customWords.forEach((word) => {
     if (vectorObjects[word]) {
+      const groupIdx = vectorGroups.indexOf(vectorObjects[word])
+      if (groupIdx > -1) vectorGroups.splice(groupIdx, 1)
       scene.remove(vectorObjects[word])
       delete vectorObjects[word]
     }
@@ -835,6 +950,8 @@ window.startFresh = function () {
 
   allWords.forEach((word) => {
     if (vectorObjects[word]) {
+      const groupIdx = vectorGroups.indexOf(vectorObjects[word])
+      if (groupIdx > -1) vectorGroups.splice(groupIdx, 1)
       scene.remove(vectorObjects[word])
       delete vectorObjects[word]
     }
@@ -852,6 +969,7 @@ window.startFresh = function () {
 
   // Clear label sprites list
   labelSpritesList.length = 0
+  vectorGroups.length = 0
 
   Object.keys(vectors).forEach((key) => delete vectors[key])
   Object.keys(originalEmbeddings).forEach((key) => delete originalEmbeddings[key])
@@ -912,48 +1030,114 @@ function animate() {
   controls.update()
 
   // Distance-based prominence for vectors and labels
-  const cameraPosition = camera.position
+  const cameraPosition = camera.position.clone()
+  const cameraDirection = new THREE.Vector3()
+  camera.getWorldDirection(cameraDirection)
+  const cameraUpVec = camera.up.clone().normalize()
+  const cameraRightVec = new THREE.Vector3().crossVectors(cameraDirection, cameraUpVec).normalize()
+  if (cameraRightVec.lengthSq() < 1e-4) {
+    cameraRightVec.set(1, 0, 0)
+  }
 
   // Update vector arrow prominence
-  vectorMeshes.forEach((mesh) => {
-    if (mesh.userData.coords) {
-      const vectorPos = new THREE.Vector3(...mesh.userData.coords)
-      const distance = cameraPosition.distanceTo(vectorPos)
+  vectorGroups.forEach((arrow) => {
+    if (!arrow.userData.coords) return
+    const tipPosition = new THREE.Vector3(...arrow.userData.coords)
+    const distance = cameraPosition.distanceTo(tipPosition)
+    const thicknessScale = clamp(mapRange(distance, 4, 20, 1.2, 0.45), 0.45, 1.2)
+    const opacityFactor = clamp(mapRange(distance, 5, 18, 1.0, 0.3), 0.3, 1.0)
 
-      // Map distance to opacity (closer = more opaque)
-      // Near: 0-8 units -> opacity 1.0
-      // Far: 8-15 units -> opacity 0.3
-      const opacity = clamp(mapRange(distance, 5, 15, 1.0, 0.25), 0.25, 1.0)
+    arrow.children.forEach((child) => {
+      if (child.userData?.isHitbox) return
 
-      // Apply to all materials in the vector group
-      mesh.traverse((child) => {
-        if (child.material) {
-          child.material.opacity = opacity
-          child.material.transparent = true
+      if (child.userData?.baseScale) {
+        const base = child.userData.baseScale
+        if (child.userData.part === 'shaft' || child.userData.part === 'glow') {
+          child.scale.set(base.x * thicknessScale, base.y, base.z * thicknessScale)
+        } else if (child.userData.part === 'cone') {
+          const heightScale = 0.85 + thicknessScale * 0.3
+          child.scale.set(base.x * thicknessScale, base.y * heightScale, base.z * thicknessScale)
+        } else if (child.userData.part === 'baseGlow') {
+          child.scale.set(base.x * thicknessScale * 1.1, base.y, base.z * thicknessScale * 1.1)
         }
-      })
-    }
+      }
+
+      if (child.material && child.userData?.baseOpacity !== undefined) {
+        child.material.opacity = child.userData.baseOpacity * opacityFactor
+        child.material.transparent = true
+      }
+    })
   })
 
-  // Update label sprite prominence
+  // Update label sprite prominence and positioning
   Object.values(labelSprites).forEach((sprite) => {
-    if (sprite.userData.coords) {
-      const labelPos = new THREE.Vector3(...sprite.userData.coords)
-      const distance = cameraPosition.distanceTo(labelPos)
-
-      // Map distance to opacity and scale
-      const opacity = clamp(mapRange(distance, 5, 15, 1.0, 0.3), 0.3, 1.0)
-      const scale = clamp(mapRange(distance, 5, 15, 1.0, 0.6), 0.6, 1.0)
-
-      sprite.material.opacity = opacity
-      sprite.scale.setScalar(scale)
+    if (!sprite.userData) return
+    if (!sprite.userData.basePosition) {
+      sprite.userData.basePosition = sprite.position.clone()
     }
+
+    const basePos = sprite.userData.basePosition.clone()
+    const distance = cameraPosition.distanceTo(basePos)
+    const toCamera = new THREE.Vector3().subVectors(cameraPosition, basePos).normalize()
+    const lateral = new THREE.Vector3().crossVectors(cameraUpVec, toCamera).normalize()
+    if (lateral.lengthSq() < 1e-4) {
+      lateral.copy(cameraRightVec)
+    }
+    const upDir = new THREE.Vector3().crossVectors(toCamera, lateral).normalize()
+    const lateralOffset = clamp(mapRange(distance, 3, 18, 0.35, 0.08), 0.08, 0.35)
+    const verticalOffset = lateralOffset * 0.35
+    const offsetSign = sprite.userData.offsetSeed || Math.sign(basePos.x) || 1
+    const finalPos = basePos
+      .clone()
+      .add(lateral.multiplyScalar(lateralOffset * offsetSign))
+      .add(upDir.multiplyScalar(verticalOffset))
+    sprite.position.copy(finalPos)
+
+    const opacity = clamp(mapRange(distance, 5, 18, 1.0, 0.25), 0.25, 1.0)
+    const scaleFactor = clamp(mapRange(distance, 4, 20, 1.2, 0.45), 0.45, 1.2)
+    const hoverBoost = sprite.userData.isHovered ? 1.1 : 1
+    const baseScale = sprite.userData.baseScale || new THREE.Vector3(2, 1, 1)
+
+    if (sprite.material) {
+      sprite.material.opacity = Math.min(1, opacity * (sprite.userData.isHovered ? 1.1 : 1))
+    }
+    sprite.scale.set(
+      baseScale.x * scaleFactor * hoverBoost,
+      baseScale.y * scaleFactor * hoverBoost,
+      baseScale.z
+    )
+  })
+
+  // Depth-based scaling for annotation sprites (angle/distance labels)
+  annotations.forEach((annotation) => {
+    if (!annotation.traverse) return
+    annotation.traverse((child) => {
+      if (child.userData?.depthResponsive) {
+        const worldPos = child.getWorldPosition(new THREE.Vector3())
+        const distance = cameraPosition.distanceTo(worldPos)
+        const opacity = clamp(mapRange(distance, 4, 18, 1.0, 0.35), 0.35, 1.0)
+        const scaleFactor = clamp(mapRange(distance, 4, 20, 1.15, 0.55), 0.55, 1.15)
+        const baseScale = child.userData.baseScale || new THREE.Vector3(1, 1, 1)
+        child.scale.set(
+          baseScale.x * scaleFactor,
+          baseScale.y * scaleFactor,
+          baseScale.z * scaleFactor
+        )
+        if (child.material && child.userData.baseOpacity !== undefined) {
+          child.material.opacity = child.userData.baseOpacity * opacity
+          child.material.transparent = true
+        }
+      }
+    })
   })
 
   // Animate connection lines
   connectionLines.forEach((line) => {
-    if (line.userData.isAnimated && line.material.uniforms) {
-      line.material.uniforms.time.value += 0.016 // ~60fps
+    if (line.userData && line.userData.isAnimated) {
+      const mat = line.userData.animatedMaterial || line.material
+      if (mat && mat.uniforms && mat.uniforms.time) {
+        mat.uniforms.time.value += 0.016
+      }
     }
   })
 
@@ -962,9 +1146,10 @@ function animate() {
 
 // Handle window resize
 window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight
+  const { clientWidth, clientHeight } = canvasContainer
+  camera.aspect = clientWidth / clientHeight
   camera.updateProjectionMatrix()
-  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.setSize(clientWidth, clientHeight)
 })
 
 // Intro sequence: Vectors emerge from origin with stagger

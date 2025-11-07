@@ -42,7 +42,8 @@ export function updateInfoPanel(selectedVectors) {
     const euclidean = euclideanDistance(data1.coords, data2.coords);
     const dot = dotProduct(data1.coords, data2.coords);
     
-    const cosineClass = cosine > 0.7 ? 'high-similarity' : cosine > 0.3 ? 'medium-similarity' : 'low-similarity';
+    const cosineAbs = Math.abs(cosine);
+    const cosineClass = cosineAbs > 0.7 ? 'high-similarity' : cosineAbs > 0.3 ? 'medium-similarity' : 'low-similarity';
     
     panel.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
