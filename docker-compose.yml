@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  vector-viz:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vector-similarity-explorer
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    labels:
+      - "com.vector-viz.description=Vector Similarity Explorer"
+      - "com.vector-viz.version=1.0"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
