@@ -11,6 +11,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <!-- End Google Tag Manager -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vector Similarity Explorer</title>
+    <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -44,58 +45,100 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <strong>Drag</strong> to rotate the view<br>
                 <div class="instruction-hint">**Try adding phrases to see how they cluster</div>
             </div>
-            
-            <div class="add-vector-panel">
-                <h3>
-                    Add Your Own Vector
-                    <span class="help-icon">
-                        <span class="help-icon-text">?</span>
-                        <span class="help-tooltip">
-                            <strong>Need inspiration?</strong> Try these in different orders:<br><br>
-                            spark • signal • pattern recognition<br>
-                            neural memory • human error<br>
-                            artificial empathy • ghost<br>
-                            memory leak • machine<br>
-                            lost moment • future nostalgia
-                        </span>
-                    </span>
-                </h3>
-                <input 
-                    type="text" 
-                    id="word-input" 
-                    placeholder="Type any word or phrase"
-                    class="word-input"
-                />
-                <button class="add-btn" onclick="addCustomVector()">Add Vector</button>
-                <div id="status-message" class="status-message"></div>
-            </div>
         </div>
 
         <div class="top-row">
-            <div class="model-selector-container">
-                <label for="model-select" class="model-label">
-                    Embedding Model
-                    <span class="help-icon">
+            <!-- Left: Add Vector -->
+            <div class="navbar-section navbar-left">
+                <div class="add-vector-compact">
+                    <input
+                        type="text"
+                        id="word-input"
+                        placeholder="Add word or phrase..."
+                        class="word-input-compact"
+                    />
+                    <button class="add-btn-compact" onclick="addCustomVector()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        Add
+                    </button>
+                    <span class="help-icon" data-tooltip="add-vector">
                         <span class="help-icon-text">?</span>
                         <span class="help-tooltip">
-                            <strong>Different models show different perspectives:</strong><br><br>
-                            <strong>MiniLM:</strong> Optimized for finding paraphrases and similar sentences<br><br>
-                            <strong>E5 (Microsoft):</strong> Trained on billions of web text pairs, captures diverse semantic relationships<br><br>
-                            <strong>BGE (BAAI):</strong> Optimized for retrieval and ranking, uses knowledge distillation from expert models<br><br>
-                            Try the same words with different models to see how training philosophy affects meaning!
+                            <strong class="tooltip-heading">Need Inspiration?</strong>
+                            <p>Try these word combinations to explore semantic relationships:</p>
+                            <ul class="tooltip-list">
+                                <li>spark • signal • pattern recognition</li>
+                                <li>neural memory • human error</li>
+                                <li>artificial empathy • ghost</li>
+                                <li>memory leak • machine</li>
+                                <li>lost moment • future nostalgia</li>
+                            </ul>
                         </span>
                     </span>
-                </label>
-                <select id="model-select" class="model-select">
-                    <option value="minilm">MiniLM (Sentence-Transformers) - 384D, ~50MB</option>
-                    <option value="e5-small">E5-small (Microsoft Research) - 384D, ~133MB</option>
-                    <option value="bge-small">BGE-small (BAAI) - 384D, ~150MB</option>
-                </select>
+                </div>
+                <div id="status-message" class="status-message"></div>
             </div>
-            <div class="controls controls-row">
-                <button class="control-btn" onclick="resetView()">Reset View</button>
-                <button class="control-btn" onclick="startFresh()">Start Fresh</button>
-                <button class="control-btn" onclick="exportVisual()">Export Image</button>
+
+            <!-- Center: Model Selector -->
+            <div class="navbar-section navbar-center">
+                <div class="model-selector-compact">
+                    <label for="model-select" class="model-label-compact">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 2L3 5L8 8L13 5L8 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path d="M3 11L8 14L13 11" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                            <path d="M3 8L8 11L13 8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                        </svg>
+                        Model
+                        <span class="help-icon" data-tooltip="model-select">
+                            <span class="help-icon-text">?</span>
+                            <span class="help-tooltip">
+                                <strong class="tooltip-heading">Why Multiple Models?</strong>
+                                <p>Each model was trained differently, leading to unique semantic perspectives:</p>
+                                <ul class="tooltip-list">
+                                    <li><strong>MiniLM:</strong> Paraphrase detection specialist</li>
+                                    <li><strong>E5 (Microsoft):</strong> Web-scale contrastive learning</li>
+                                    <li><strong>BGE (BAAI):</strong> Retrieval optimization with distillation</li>
+                                </ul>
+                                <p style="margin-top: 12px; font-style: italic; color: var(--text-muted);">
+                                    Try the same words with different models to see how training affects meaning!
+                                </p>
+                            </span>
+                        </span>
+                    </label>
+                    <select id="model-select" class="model-select-compact">
+                        <option value="minilm">MiniLM - 384D</option>
+                        <option value="e5-small">E5-small - 384D</option>
+                        <option value="bge-small">BGE-small - 384D</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Right: Controls -->
+            <div class="navbar-section navbar-right">
+                <div class="controls-compact">
+                    <button class="control-btn-compact" onclick="resetView()" title="Reset camera view">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M8 2L8 5M8 2L11 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Reset
+                    </button>
+                    <button class="control-btn-compact" onclick="startFresh()" title="Clear all custom vectors">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M2 4H14M6 4V3C6 2.44772 6.44772 2 7 2H9C9.55228 2 10 2.44772 10 3V4M5 7V12M8 7V12M11 7V12M3 4L4 13C4 13.5523 4.44772 14 5 14H11C11.5523 14 12 13.5523 12 13L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Clear
+                    </button>
+                    <button class="control-btn-compact" onclick="exportVisual()" title="Export as image">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 11V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Export
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -108,6 +151,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             </div>
         </div>
     </div>
+
+    <!-- Help Tour Button -->
+    <button class="help-tour-btn" id="help-tour-btn" title="Start Tutorial" aria-label="Start interactive tutorial">
+        ?
+    </button>
 
     <script type="importmap">
     {

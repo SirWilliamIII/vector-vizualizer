@@ -16,6 +16,8 @@ import { cosineSimilarity, euclideanDistance, mapRange, clamp } from './math-uti
 import { pcaTo3D } from './math-utils.js'
 import { initEmbeddingModel, getEmbedding, isModelReady, MODEL_CONFIGS, getCurrentModel } from './embeddings.js'
 import { updateInfoPanel, showStatus, clearStatus } from './ui.js'
+import { OnboardingTour, injectOnboardingStyles } from './onboarding.js'
+import { initMobileTooltips, pulseHelpIcons, injectMobileTooltipStyles } from './tooltip-mobile.js'
 
 // Scene setup
 const scene = new THREE.Scene()
@@ -63,6 +65,7 @@ const connectionLines = []
 const annotations = [] // Track angle arcs and distance labels
 const vectorAnimations = new Map() // Track ongoing animations
 let lastHoveredVector = null
+let previousCameraState = null // Store camera state before comparison zoom
 
 function setLabelBasePosition(label, coords, multiplier = 1.1) {
   const basePos = new THREE.Vector3(
@@ -362,7 +365,7 @@ function onMouseClick(event) {
     if (selectedVectors.length === 2) {
       // If 2 vectors are selected (comparison mode), clicking empty space resets everything
       selectedVectors = []
-      window.resetView() // Reset camera to default position
+      restoreCameraState() // Restore camera to previous position
       updateSelection()
     }
   }
@@ -639,6 +642,7 @@ function updateSelection() {
   if (closeBtn) {
     closeBtn.addEventListener('click', function () {
       selectedVectors = []
+      restoreCameraState()
       updateSelection()
     })
   }
@@ -655,6 +659,14 @@ function clearAnnotations() {
 }
 
 function focusCameraOnVectors(coords1, coords2) {
+  // Save current camera state before zooming (only save once per comparison)
+  if (!previousCameraState) {
+    previousCameraState = {
+      position: camera.position.clone(),
+      target: controls.target.clone()
+    };
+  }
+
   // Calculate midpoint of the triangle (origin + 2 vectors)
   const origin = new THREE.Vector3(0, 0, 0)
   const vec1 = new THREE.Vector3(...coords1)
@@ -688,8 +700,8 @@ function focusCameraOnVectors(coords1, coords2) {
     }
   }
 
-  // Position camera above the triangle looking down - tight framing
-  const cameraDistance = Math.max(boundingSphereRadius * 1.15, 4)
+  // Position camera above the triangle looking down - ZOOMED IN (tighter framing)
+  const cameraDistance = Math.max(boundingSphereRadius * 0.85, 3) // Reduced from 1.15 to 0.85 for closer zoom
   const targetPos = normal.multiplyScalar(cameraDistance).add(centroid)
 
   // Animate camera movement
@@ -719,6 +731,45 @@ function focusCameraOnVectors(coords1, coords2) {
   animateCamera()
 }
 
+// Restore camera to previous state with smooth animation
+function restoreCameraState() {
+  if (!previousCameraState) {
+    // No saved state, use default view
+    window.resetView();
+    return;
+  }
+
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const targetPos = previousCameraState.position;
+  const targetLookAt = previousCameraState.target;
+  const duration = 800;
+  const startTime = Date.now();
+
+  function animateCamera() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Smooth easing
+    const eased =
+      progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    camera.position.lerpVectors(startPos, targetPos, eased);
+    controls.target.lerpVectors(startTarget, targetLookAt, eased);
+    controls.update();
+
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera);
+    } else {
+      // Clear saved state after restoration
+      previousCameraState = null;
+    }
+  }
+
+  animateCamera();
+}
+
 window.addEventListener('mousemove', onMouseMove)
 window.addEventListener('click', onMouseClick)
 
@@ -726,12 +777,15 @@ window.addEventListener('click', onMouseClick)
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && selectedVectors.length > 0) {
     selectedVectors = []
+    restoreCameraState()
     updateSelection()
   }
 })
 
 // Control functions
 window.resetView = function () {
+  // Clear saved camera state when manually resetting
+  previousCameraState = null
   // Optimal for 14 curated vectors
   camera.position.set(6, 6, 6)
   camera.lookAt(0, 0, 0)
@@ -899,6 +953,137 @@ window.addCustomVector = async function () {
     setTimeout(() => clearStatus(), 4000)
   }
 }
+
+// Handle model switching - re-embed all vectors with new model
+async function switchModel(newModelKey) {
+  const modelConfig = MODEL_CONFIGS[newModelKey];
+
+  if (!modelConfig) {
+    showStatus(`Unknown model: ${newModelKey}`, 'error');
+    setTimeout(() => clearStatus(), 2000);
+    return;
+  }
+
+  const currentModel = getCurrentModel();
+
+  // If already using this model, do nothing
+  if (currentModel === newModelKey && isModelReady()) {
+    return;
+  }
+
+  try {
+    // Show loading overlay on canvas
+    const canvasContainer = document.getElementById('canvas-container');
+    const overlay = document.createElement('div');
+    overlay.className = 'canvas-overlay';
+    overlay.innerHTML = `
+      <div class="loading-spinner"></div>
+      <p style="color: var(--text-primary); font-size: var(--text-lg); margin-top: var(--space-lg);">
+        Loading ${modelConfig.name}...
+      </p>
+      <p style="color: var(--text-muted); font-size: var(--text-sm); margin-top: var(--space-xs);">
+        ${modelConfig.size}
+      </p>
+    `;
+    canvasContainer.appendChild(overlay);
+
+    // Disable controls during loading
+    const modelSelect = document.getElementById('model-select');
+    if (modelSelect) modelSelect.disabled = true;
+
+    // Initialize new model
+    await initEmbeddingModel(newModelKey);
+
+    // Re-embed all existing words with the new model
+    const allWords = Object.keys(vectors);
+    showStatus(`Re-embedding ${allWords.length} words with ${modelConfig.name}...`, 'loading');
+
+    for (const word of allWords) {
+      originalEmbeddings[word] = await getEmbedding(word, newModelKey);
+    }
+
+    // Recalculate PCA with new embeddings
+    const projected = pcaTo3D(originalEmbeddings);
+
+    if (!projected) {
+      throw new Error('PCA failed after model switch');
+    }
+
+    // Update all vector coordinates
+    const nonNullWords = Object.keys(originalEmbeddings).filter(w => originalEmbeddings[w] !== null);
+    nonNullWords.forEach((w, i) => {
+      if (vectors[w]) {
+        vectors[w].coords = projected[i];
+      }
+    });
+
+    // Clear and recreate all Three.js objects with new coordinates
+    // Remove all existing vectors and labels
+    Object.values(vectorObjects).forEach(obj => scene.remove(obj));
+    Object.values(labelSprites).forEach(label => scene.remove(label));
+
+    // Clear arrays
+    vectorMeshes.length = 0;
+    vectorGroups.length = 0;
+    labelSpritesList.length = 0;
+
+    // Recreate all vectors with new positions
+    const updatedCoords = Object.values(vectors).map(v => v.coords);
+
+    Object.entries(vectors).forEach(([word, data]) => {
+      // Create vector arrow
+      const arrow = createVectorArrow([0, 0, 0], data.coords, data.color, updatedCoords);
+      arrow.userData = { name: word, coords: data.coords, color: data.color };
+      scene.add(arrow);
+      vectorObjects[word] = arrow;
+      vectorGroups.push(arrow);
+
+      arrow.children.forEach((mesh) => {
+        mesh.userData = { name: word, coords: data.coords, color: data.color };
+        vectorMeshes.push(mesh);
+      });
+
+      // Create label
+      const label = createTextLabel(word, data.color);
+      label.userData = { name: word, coords: data.coords, color: data.color, isHovered: false };
+      setLabelBasePosition(label, data.coords);
+      scene.add(label);
+      labelSprites[word] = label;
+      labelSpritesList.push(label);
+    });
+
+    // Clear any active selections
+    selectedVectors = [];
+    clearConnectionLines();
+    clearAnnotations();
+    updateInfoPanel(selectedVectors);
+
+    // Remove overlay with fade out
+    overlay.classList.add('fade-out');
+    setTimeout(() => overlay.remove(), 300);
+
+    // Re-enable controls
+    if (modelSelect) modelSelect.disabled = false;
+
+    showStatus(`Switched to ${modelConfig.name}`, 'success');
+    setTimeout(() => clearStatus(), 2000);
+
+  } catch (error) {
+    console.error('Error switching model:', error);
+
+    // Remove overlay
+    const overlay = document.querySelector('.canvas-overlay');
+    if (overlay) overlay.remove();
+
+    // Re-enable controls
+    const modelSelect = document.getElementById('model-select');
+    if (modelSelect) modelSelect.disabled = false;
+
+    showStatus(`Error switching model: ${error.message}`, 'error');
+    setTimeout(() => clearStatus(), 4000);
+  }
+}
+
 window.clearCustomVectors = function () {
   const customWords = Object.keys(vectors).filter((w) => vectors[w].isCustom)
 
@@ -1286,6 +1471,46 @@ function runIntroSequence() {
 
   requestAnimationFrame(animateVectors)
 }
+
+// Initialize onboarding tour
+injectOnboardingStyles()
+const tour = new OnboardingTour()
+
+// Initialize mobile tooltip functionality
+injectMobileTooltipStyles()
+initMobileTooltips()
+
+// Pulse help icons for discovery (after intro completes)
+setTimeout(() => {
+  pulseHelpIcons()
+}, 3500)
+
+// Start tour for first-time visitors after intro animation completes
+setTimeout(() => {
+  if (!tour.hasCompletedTour()) {
+    tour.start()
+  }
+}, 3000) // Wait 3 seconds after page load for intro animation
+
+// Help button to restart tour
+const helpBtn = document.getElementById('help-tour-btn')
+if (helpBtn) {
+  helpBtn.addEventListener('click', () => {
+    tour.restart()
+  })
+}
+
+// Model selector - switch models on change
+const modelSelect = document.getElementById('model-select')
+if (modelSelect) {
+  modelSelect.addEventListener('change', (e) => {
+    const newModel = e.target.value
+    switchModel(newModel)
+  })
+}
+
+// Make tour accessible globally for manual triggering
+window.startTour = () => tour.restart()
 
 // Start
 runIntroSequence()

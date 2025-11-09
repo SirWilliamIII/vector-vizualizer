@@ -3,13 +3,29 @@ import { cosineSimilarity, euclideanDistance, dotProduct, magnitude } from './ma
 
 export function updateInfoPanel(selectedVectors) {
     const panel = document.getElementById('info-panel');
-    
+
     if (selectedVectors.length === 0) {
         panel.innerHTML = `
-            <h3>Select Vectors to Compare</h3>
-            <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
-                Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
-            </p>
+            <div class="info-panel-empty">
+                <div class="empty-icon">
+                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M32 8L32 56M8 32L56 32" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+                        <circle cx="32" cy="32" r="20" stroke="currentColor" stroke-width="2" opacity="0.4" stroke-dasharray="4 4"/>
+                        <path d="M32 20L38 32L32 44" stroke="var(--accent-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                    </svg>
+                </div>
+                <h3 style="color: var(--text-primary); font-size: var(--text-lg); margin-bottom: var(--space-sm); text-transform: none; opacity: 1;">Ready to Compare</h3>
+                <p style="color: var(--text-tertiary); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin-bottom: var(--space-lg);">
+                    Select any vector to see its details, or click <strong style="color: var(--accent-primary);">two vectors</strong> to visualize their similarity.
+                </p>
+
+                <div class="empty-hint">
+                    <span class="hint-badge">💡 Pro Tip</span>
+                    <p style="margin-top: var(--space-xs); color: var(--text-muted); font-size: var(--text-sm); line-height: var(--leading-normal);">
+                        Try comparing opposites like "hot" and "cold" to see how embeddings capture semantic distance!
+                    </p>
+                </div>
+            </div>
         `;
         return;
     }
@@ -41,9 +57,17 @@ export function updateInfoPanel(selectedVectors) {
     const cosine = cosineSimilarity(data1.coords, data2.coords);
     const euclidean = euclideanDistance(data1.coords, data2.coords);
     const dot = dotProduct(data1.coords, data2.coords);
-    
-    const cosineAbs = Math.abs(cosine);
-    const cosineClass = cosineAbs > 0.7 ? 'high-similarity' : cosineAbs > 0.3 ? 'medium-similarity' : 'low-similarity';
+
+    // Color coding for cosine similarity (negative = opposite, positive = similar)
+    const cosineClass = cosine > 0.7 ? 'high-similarity' : cosine > 0.3 ? 'medium-similarity' : 'low-similarity';
+
+    // Color coding for euclidean distance (lower is better - inverted scale)
+    // Typical range in 3D PCA space is ~0.5 to ~4.0
+    const euclideanClass = euclidean < 1.0 ? 'high-similarity' : euclidean < 2.0 ? 'medium-similarity' : 'low-similarity';
+
+    // Color coding for dot product (higher is better)
+    // Range varies but typically -2.0 to +2.0 for normalized vectors
+    const dotClass = dot > 0.5 ? 'high-similarity' : dot > -0.5 ? 'medium-similarity' : 'low-similarity';
     
     panel.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -72,27 +96,27 @@ export function updateInfoPanel(selectedVectors) {
                     <span class="metric-value ${cosineClass}">${cosine.toFixed(3)}</span>
                 </div>
                 <div class="metric-explanation">
-                    Measures angle between vectors. Range: -1 to 1. Higher = more similar direction. Best for comparing meaning.
+                    Measures angle between vectors. <strong>+1 = same direction</strong>, 0 = perpendicular, <strong>-1 = opposite</strong>. Negative values mean semantically dissimilar.
                 </div>
             </div>
             
             <div class="metric-card">
                 <div class="metric-header">
                     <span class="metric-name">Euclidean Distance</span>
-                    <span class="metric-value">${euclidean.toFixed(3)}</span>
+                    <span class="metric-value ${euclideanClass}">${euclidean.toFixed(3)}</span>
                 </div>
                 <div class="metric-explanation">
-                    Straight-line distance between points. Lower = closer together. Sensitive to magnitude.
+                    Straight-line distance between points. <strong>Lower = closer together.</strong> Sensitive to magnitude.
                 </div>
             </div>
-            
+
             <div class="metric-card">
                 <div class="metric-header">
                     <span class="metric-name">Dot Product</span>
-                    <span class="metric-value">${dot.toFixed(3)}</span>
+                    <span class="metric-value ${dotClass}">${dot.toFixed(3)}</span>
                 </div>
                 <div class="metric-explanation">
-                    Combines angle and magnitude. Higher = more aligned and longer vectors.
+                    Combines angle and magnitude. <strong>Higher = more aligned</strong> and longer vectors.
                 </div>
             </div>
         </div>
