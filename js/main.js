@@ -826,8 +826,8 @@ window.addCustomVector = async function () {
     return
   }
 
-  const addBtn = document.querySelector('.add-btn')
-  addBtn.disabled = true
+  const addBtn = document.querySelector('.add-btn-compact')
+  if (addBtn) addBtn.disabled = true
 
   try {
     let embedding
@@ -943,13 +943,13 @@ window.addCustomVector = async function () {
       'success'
     )
     input.value = ''
-    addBtn.disabled = false
+    if (addBtn) addBtn.disabled = false
     setTimeout(() => clearStatus(), 3000)
 
   } catch (error) {
     console.error('Error adding vector:', error)
     showStatus(`Error: ${error.message}`, 'error')
-    addBtn.disabled = false
+    if (addBtn) addBtn.disabled = false
     setTimeout(() => clearStatus(), 4000)
   }
 }
