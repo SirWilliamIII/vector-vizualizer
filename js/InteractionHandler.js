@@ -4,6 +4,7 @@
  * Handles all user interactions including:
  * - Mouse movement (hover detection)
  * - Mouse clicks (selection)
+ * - Touch events (tap selection on mobile/tablet)
  * - Keyboard shortcuts
  * - Selection state updates
  * - Comparison mode visualization
@@ -11,6 +12,7 @@
  * Benefits:
  * - Centralizes interaction logic
  * - Separates input handling from business logic
+ * - Full mobile/tablet touch support
  * - Easier to test interactions
  * - Clear event flow
  */
@@ -43,8 +45,17 @@ export class InteractionHandler {
   // ========================================================================
 
   setupEventListeners() {
+    // Mouse events
     window.addEventListener('mousemove', (e) => this.onMouseMove(e))
     window.addEventListener('click', (e) => this.onMouseClick(e))
+
+    // Touch events for mobile/tablet - attach to canvas for better control
+    const canvas = this.sceneManager.renderer.domElement
+    canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false })
+    canvas.addEventListener('touchend', (e) => this.onTouchEnd(e), { passive: false })
+    canvas.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: true })
+
+    // Keyboard events
     window.addEventListener('keydown', (e) => this.onKeyDown(e))
   }
 
@@ -146,6 +157,121 @@ export class InteractionHandler {
       this.state.clearSelection()
       this.cameraController.restoreSavedState()
       this.updateSelection()
+    }
+  }
+
+  // ========================================================================
+  // TOUCH INTERACTIONS
+  // ========================================================================
+
+  onTouchStart(event) {
+    // Store initial touch for detecting taps vs drags
+    if (event.touches.length === 1) {
+      this.touchStartX = event.touches[0].clientX
+      this.touchStartY = event.touches[0].clientY
+      this.touchStartTime = Date.now()
+
+      // Check if touching a vector - if so, we'll handle the interaction
+      const touch = event.touches[0]
+      this.sceneManager.updatePointerFromEvent(touch)
+
+      const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
+      const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
+
+      // If touching a vector/label, prevent default to stop OrbitControls
+      if (meshIntersects.length > 0 || labelIntersects.length > 0) {
+        this.touchingVector = true
+      } else {
+        this.touchingVector = false
+      }
+    }
+  }
+
+  onTouchMove(event) {
+    // Handle hover-like behavior on touch
+    if (event.touches.length === 1) {
+      const touch = event.touches[0]
+      this.sceneManager.updatePointerFromEvent(touch)
+
+      const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
+      const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
+
+      // Reset all non-selected vectors
+      this.state.getVectorGroups().forEach((arrow) => {
+        if (!arrow.userData) return
+        const name = arrow.userData.name
+        if (this.state.isSelected(name)) return
+
+        arrow.children.forEach((child) => {
+          if (!child.material || child.userData?.isHitbox) return
+          child.material.emissiveIntensity = 0.25
+          if (child.userData?.baseOpacity !== undefined) {
+            child.material.opacity = child.userData.baseOpacity
+          }
+        })
+      })
+
+      // Highlight touched vector
+      if (meshIntersects.length > 0 || labelIntersects.length > 0) {
+        const name = meshIntersects.length > 0
+          ? meshIntersects[0].object.userData.name
+          : labelIntersects[0].object.userData.name
+
+        if (!this.state.isSelected(name)) {
+          this.highlightVector(name)
+        }
+      }
+    }
+  }
+
+  onTouchEnd(event) {
+    if (event.changedTouches.length === 0) return
+
+    const touch = event.changedTouches[0]
+    const touchEndX = touch.clientX
+    const touchEndY = touch.clientY
+    const touchDuration = Date.now() - this.touchStartTime
+
+    // Calculate movement distance
+    const dx = touchEndX - this.touchStartX
+    const dy = touchEndY - this.touchStartY
+    const distance = Math.sqrt(dx * dx + dy * dy)
+
+    // Only treat as tap if minimal movement and quick duration
+    // More lenient thresholds for touch: 20px movement, 500ms duration
+    if (distance < 20 && touchDuration < 500) {
+      this.sceneManager.updatePointerFromEvent(touch)
+
+      const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
+      const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
+
+      let name = null
+
+      if (meshIntersects.length > 0) {
+        name = meshIntersects[0].object.userData.name
+      } else if (labelIntersects.length > 0) {
+        name = labelIntersects[0].object.userData.name
+      }
+
+      if (name) {
+        // Prevent OrbitControls from processing this as a pan gesture
+        event.preventDefault()
+        event.stopPropagation()
+
+        // Tapped on a vector or label
+        this.state.selectVector(name)
+        this.updateSelection()
+      } else {
+        // Tapped empty space
+        if (this.state.isComparisonMode()) {
+          event.preventDefault()
+          event.stopPropagation()
+
+          this.state.clearSelection()
+          this.cameraController.restoreSavedState()
+          this.updateSelection()
+        }
+      }
     }
   }
 

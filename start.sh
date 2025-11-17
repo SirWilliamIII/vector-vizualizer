@@ -4,7 +4,8 @@
 # Starts a local web server to run the application
 
 PORT=3000
-HOST="localhost"
+HOST="0.0.0.0"
+NGROK_DOMAIN="will-node.ngrok.dev"
 
 echo "🚀 Starting Vector Similarity Explorer..."
 echo ""
@@ -30,13 +31,49 @@ if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
     fi
 fi
 
-echo "📡 Starting server on http://$HOST:$PORT"
-echo ""
-echo "✨ Open your browser and navigate to:"
-echo "   http://$HOST:$PORT"
-echo ""
-echo "Press Ctrl+C to stop the server"
+# Get local IP address
+LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "Unable to detect IP")
+
+echo "📡 Starting server on all network interfaces"
 echo ""
 
-# Start Python HTTP server
-python3 -m http.server $PORT
+# Start Python HTTP server in background
+python3 -m http.server $PORT --bind $HOST &
+SERVER_PID=$!
+
+# Wait a moment for server to start
+sleep 1
+
+# Start ngrok tunnel
+echo "🌐 Starting ngrok tunnel..."
+ngrok http 3000 --domain=$NGROK_DOMAIN &
+NGROK_PID=$!
+
+# Wait for ngrok to initialize
+sleep 2
+
+echo ""
+echo "✨ Access the app from:"
+echo "   Local:    http://localhost:$PORT"
+if [ "$LOCAL_IP" != "Unable to detect IP" ]; then
+    echo "   Network:  http://$LOCAL_IP:$PORT"
+fi
+echo "   Public:   https://$NGROK_DOMAIN"
+echo ""
+echo "Press Ctrl+C to stop both servers"
+echo ""
+
+# Cleanup function
+cleanup() {
+    echo ""
+    echo "🛑 Stopping servers..."
+    kill $SERVER_PID 2>/dev/null
+    kill $NGROK_PID 2>/dev/null
+    exit 0
+}
+
+# Trap Ctrl+C
+trap cleanup INT
+
+# Wait for both processes
+wait
