@@ -1,6 +1,16 @@
 artificial intelligence
-machine learning
+and machine learning
+
 deep learning
-neural networks
+using neural networks
+
 natural language processing
+for understanding text
+
 computer vision
+for image recognition
+
+data science
+and analytics
+
+quantum computing

@@ -3,7 +3,7 @@
  *
  * Handles batch uploading of text items from files:
  * - File reading and validation
- * - Text parsing (line-by-line)
+ * - Text parsing (blank line delimited entries)
  * - Deduplication
  * - Progress tracking
  * - Batch embedding and PCA re-projection
@@ -11,7 +11,7 @@
 
 import { getEmbedding, initEmbeddingModel } from './embeddings.js'
 import { vectors, originalEmbeddings } from './vector-data.js'
-import { pcaTo3D, assignColorsBasedOnSimilarity } from './math-utils.js'
+import { pcaTo3D } from './math-utils.js'
 import { showStatus } from './ui.js'
 
 // Configuration
@@ -30,33 +30,33 @@ function truncateForDisplay(text) {
 }
 
 /**
- * Parse file content into lines
- * - Split by newline
+ * Parse file content into entries
+ * - Split by blank lines (double newline)
  * - Trim whitespace
- * - Remove empty lines
+ * - Remove empty entries
  * - Deduplicate
  */
 function parseFileContent(content) {
-  const lines = content
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
+  const entries = content
+    .split(/\n\s*\n/)  // Split by blank lines (one or more newlines with optional whitespace)
+    .map(entry => entry.trim())
+    .filter(entry => entry.length > 0)
 
   // Deduplicate using Set
-  const uniqueLines = [...new Set(lines)]
+  const uniqueEntries = [...new Set(entries)]
 
   // Check existing vectors to avoid duplicates with already-added items
   const existingWords = Object.keys(vectors)
-  const newLines = uniqueLines.filter(line => {
-    const truncated = truncateForDisplay(line)
+  const newEntries = uniqueEntries.filter(entry => {
+    const truncated = truncateForDisplay(entry)
     return !existingWords.includes(truncated)
   })
 
   return {
-    total: lines.length,
-    unique: uniqueLines.length,
-    new: newLines.length,
-    lines: newLines
+    total: entries.length,
+    unique: uniqueEntries.length,
+    new: newEntries.length,
+    lines: newEntries
   }
 }
 
@@ -81,6 +81,12 @@ function validateContent(parsed) {
  * Create progress overlay UI
  */
 function createProgressOverlay(total) {
+  // Remove any existing progress overlays first
+  const existingOverlay = document.getElementById('batch-progress-overlay')
+  if (existingOverlay) {
+    existingOverlay.remove()
+  }
+
   const overlay = document.createElement('div')
   overlay.id = 'batch-progress-overlay'
   overlay.className = 'canvas-overlay'
@@ -97,17 +103,31 @@ function createProgressOverlay(total) {
     </div>
   `
 
-  document.getElementById('canvas-container').appendChild(overlay)
+  const container = document.getElementById('canvas-container')
+  if (container) {
+    container.appendChild(overlay)
+  }
 
   return {
     updateProgress: (current, total, status) => {
-      const percent = Math.round((current / total) * 100)
-      document.getElementById('batch-progress-bar').style.width = `${percent}%`
-      document.getElementById('batch-progress-text').textContent = status
+      const progressBar = document.getElementById('batch-progress-bar')
+      const progressText = document.getElementById('batch-progress-text')
+      if (progressBar && progressText) {
+        const percent = Math.round((current / total) * 100)
+        progressBar.style.width = `${percent}%`
+        progressText.textContent = status
+      }
     },
     remove: () => {
-      overlay.classList.add('fade-out')
-      setTimeout(() => overlay.remove(), 300)
+      const overlayToRemove = document.getElementById('batch-progress-overlay')
+      if (overlayToRemove) {
+        overlayToRemove.classList.add('fade-out')
+        setTimeout(() => {
+          if (overlayToRemove.parentNode) {
+            overlayToRemove.remove()
+          }
+        }, 300)
+      }
     }
   }
 }
@@ -166,18 +186,23 @@ export async function processBatchUpload(items, currentModel) {
     // Update coordinates for all vectors
     validWords.forEach((word, i) => {
       if (!vectors[word]) {
-        vectors[word] = {}
+        // New vector - assign random color like individually added vectors
+        const randomColor = Math.floor(Math.random() * 0xffffff)
+        vectors[word] = {
+          coords: coords3D[i],
+          color: randomColor,
+          isCustom: true
+        }
+      } else {
+        vectors[word].coords = coords3D[i]
       }
-      vectors[word].coords = coords3D[i]
-      vectors[word].fullText = newEmbeddings.find(e => e.name === word)?.fullText || word
+
+      // Store full text metadata
+      const embeddingData = newEmbeddings.find(e => e.name === word)
+      if (embeddingData) {
+        vectors[word].fullText = embeddingData.fullText
+      }
     })
-
-    // Assign colors based on similarity
-    progress.updateProgress(items.length, items.length, 'Assigning colors...')
-    assignColorsBasedOnSimilarity(vectors)
-
-    // Remove progress overlay
-    progress.remove()
 
     // Show success message
     showStatus(`Successfully added ${items.length} vectors!`, 'success')
@@ -186,10 +211,12 @@ export async function processBatchUpload(items, currentModel) {
     return true
 
   } catch (error) {
-    progress.remove()
     showStatus(`Batch upload failed: ${error.message}`, 'error')
     console.error('Batch upload error:', error)
     return false
+  } finally {
+    // Always remove progress overlay
+    progress.remove()
   }
 }
 
