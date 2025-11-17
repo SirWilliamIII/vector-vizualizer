@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Vector Similarity Explorer is an interactive 3D visualization tool for exploring word embeddings and their semantic relationships. Users can visualize word vectors in 3D space, compare similarities, and dynamically add custom words using multiple embedding models from major research institutions.
 
-**Live Demo:** https://viz.linux-box.cc/
+**Live Demo:** https://probablyfine.lol
 
 **Supported Models:**
 - MiniLM-L6-v2 (Sentence-Transformers) - Paraphrase detection specialist

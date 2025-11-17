@@ -4,7 +4,7 @@ This project is an interactive 3D visualization tool for exploring word embeddin
 
 ## Live Demo
 
-https://viz.linux-box.cc/
+https://probablyfine.lol
 
 ## Features
 
