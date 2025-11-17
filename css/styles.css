@@ -47,7 +47,7 @@ body {
   border-radius: 28px;
   overflow: hidden;
   box-shadow: var(--shadow-xl);
-  z-index: var(--z-base);
+  z-index: 1;
   position: relative;
 }
 
@@ -134,6 +134,7 @@ body {
   padding: var(--space-lg);
   min-width: 240px;
   box-shadow: var(--shadow-md);
+  pointer-events: auto;
   transition: all var(--transition-base);
 }
 
@@ -189,6 +190,7 @@ body {
   line-height: var(--leading-loose);
   color: var(--text-secondary);
   transition: all var(--transition-base);
+  pointer-events: auto;
 }
 
 .instructions:hover {
@@ -225,6 +227,7 @@ body {
   overflow-y: auto;
   box-shadow: var(--shadow-md);
   transition: all var(--transition-base);
+  pointer-events: auto;
 }
 
 .info-panel:hover {

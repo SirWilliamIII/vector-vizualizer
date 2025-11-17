@@ -11,7 +11,9 @@ lerna-debug.log*
 AGENTS.md
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
+AGENTS*
+REFACTORING_SUMMARY.md
+songs.txt
 # Runtime data
 pids
 *.pid
