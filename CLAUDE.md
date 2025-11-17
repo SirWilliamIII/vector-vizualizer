@@ -34,6 +34,31 @@ This is a static website with no build process. Development is straightforward:
 
 - **Testing Changes:** Simply refresh the browser after editing files
 
+## Deployment
+
+For Docker-based deployment, see [DOCKER.md](DOCKER.md). The application can be containerized using nginx:alpine and deployed with:
+- **Docker Compose (recommended):** `docker-compose up -d` (available at localhost:8080)
+- **Docker CLI:** Build and run with port mapping to any host port
+- **Kubernetes:** Example manifests provided for multi-replica deployments
+- **Production:** Includes gzip compression, security headers, and health checks
+
+## Development Utilities
+
+**Node.js Version:** 20.x (specified in `.node-version`) - only needed for running embedding generation scripts, not required for the static site itself.
+
+**Embedding Generation Scripts:**
+- **generate-embeddings.js** - Node.js script for pre-generating embeddings for the initial vector set
+- **generate-curated-embeddings.js** - Generates curated subset of vectors with specific models
+
+These are one-time utilities used to create the initial vector data files, not part of the runtime application.
+
+**Educational Resources:**
+- **guide.html** - Educational companion page explaining vector spaces, embeddings, and dimensionality reduction (accessible at `/guide.html`)
+
+## Testing
+
+This project currently has no automated test suite. Testing is done manually through browser interaction and visual verification.
+
 ## Responsive Design
 
 The application is fully responsive with special handling for screens < 1200px:
@@ -71,6 +96,8 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - **three-helpers.js** - Three.js object factories for vectors, labels, lines, axes, and annotations
 - **ui.js** - DOM manipulation for info panel and status messages
 - **batch-upload.js** - Batch file upload handling (parsing, validation, progress UI, embedding)
+- **onboarding.js** - Progressive disclosure tutorial system with multi-step tour functionality
+- **tooltip-mobile.js** - Touch-friendly tooltip behavior for mobile devices with tap-to-toggle
 
 ### Key Architectural Patterns
 
@@ -118,6 +145,14 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - Angle arcs visualize cosine similarity (angle between vectors)
 - Distance annotations show euclidean distance with tick marks
 - Connection lines use custom shader material for animated gradient effects
+
+**Onboarding Tour System:**
+- Multi-step progressive disclosure tutorial for first-time users
+- Steps include: Welcome, Color coding, Interaction, Model selection, Add custom words
+- Each step targets specific UI elements with highlighting and positioning
+- Tour state persisted in localStorage to show only once per user
+- Manual trigger available via "Tour" button in navigation
+- Overlay system with backdrop and positioned tooltips
 
 ### Important Implementation Details
 
@@ -203,7 +238,8 @@ index.html
       │     ├─→ math-utils.js (PCA)
       │     └─→ ui.js (status messages)
       ├─→ ui.js (DOM updates)
-      ├─→ onboarding.js (tour system)
+      ├─→ onboarding.js (progressive disclosure tutorial)
+      ├─→ tooltip-mobile.js (touch-friendly tooltips)
       └─→ constants.js (all configuration)
 ```
 
