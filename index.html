@@ -63,6 +63,20 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         </svg>
                         Add
                     </button>
+                    <input
+                        type="file"
+                        id="batch-file-input"
+                        accept=".txt"
+                        style="display: none;"
+                        onchange="handleBatchUpload(event)"
+                    />
+                    <button class="batch-btn-compact" onclick="document.getElementById('batch-file-input').click()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 2V10M8 2L5 5M8 2L11 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 10V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        Batch
+                    </button>
                     <span class="help-icon" data-tooltip="add-vector">
                         <span class="help-icon-text">?</span>
                         <span class="help-tooltip">
@@ -75,6 +89,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                                 <li>memory leak • machine</li>
                                 <li>lost moment • future nostalgia</li>
                             </ul>
+                            <p style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(74, 222, 128, 0.3);">
+                                <strong>Batch Upload:</strong> Upload a .txt file with one item per line (max 50 items)
+                            </p>
                         </span>
                     </span>
                 </div>

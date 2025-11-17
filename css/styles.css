@@ -565,6 +565,45 @@ body {
   flex-shrink: 0;
 }
 
+.batch-btn-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.batch-btn-compact:hover {
+  background: var(--state-hover-bg);
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.batch-btn-compact:active {
+  transform: translateY(0);
+}
+
+.batch-btn-compact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.batch-btn-compact svg {
+  flex-shrink: 0;
+}
+
 /* Model Selector - Compact */
 .model-selector-compact {
   display: flex;

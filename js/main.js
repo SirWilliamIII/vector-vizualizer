@@ -24,6 +24,7 @@ import { mapRange, clamp } from './math-utils.js'
 import { showStatus, clearStatus, updateInfoPanel } from './ui.js'
 import { OnboardingTour, injectOnboardingStyles } from './onboarding.js'
 import { initMobileTooltips, pulseHelpIcons, injectMobileTooltipStyles } from './tooltip-mobile.js'
+import { handleBatchUpload as batchUploadHandler } from './batch-upload.js'
 
 // Import managers and controllers
 import { StateManager } from './StateManager.js'
@@ -395,6 +396,13 @@ window.startFresh = function () {
   setTimeout(() => clearStatus(), STATUS_CONFIG.SUCCESS_TIMEOUT_MS)
 }
 
+window.handleBatchUpload = async function (event) {
+  const modelSelect = document.getElementById('model-select')
+  const selectedModel = modelSelect ? modelSelect.value : 'minilm'
+
+  await batchUploadHandler(event, selectedModel)
+}
+
 window.exportVisual = function () {
   const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
   const filename = `vector-viz-${timestamp}.png`
@@ -481,6 +489,13 @@ if (modelSelect) {
     switchModel(e.target.value)
   })
 }
+
+// Batch upload completion handler
+window.addEventListener('batchUploadComplete', async () => {
+  // Recreate all visualizations after batch upload
+  await vectorManager.recreateAllVisualizations()
+  interactionHandler.updateSelection()
+})
 
 // ========================================================================
 // ONBOARDING TOUR
