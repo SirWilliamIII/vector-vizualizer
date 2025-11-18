@@ -1,5 +1,4 @@
 # Claude Code documentation
-CLAUDE.md
 .claude/
 # Logs
 logs
@@ -19,7 +18,6 @@ pids
 *.pid
 *.seed
 *.pid.lock
-CLAUDE.md
 test.txt
 
 

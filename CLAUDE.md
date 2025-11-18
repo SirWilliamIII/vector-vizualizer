@@ -150,6 +150,11 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - Angle arcs visualize cosine similarity (angle between vectors)
 - Distance annotations show euclidean distance with tick marks
 - Connection lines use custom shader material for animated gradient effects
+- **Label Rendering:** Canvas-based sprites with optimized sizing
+  - Font size: 32px (reduced from 48px for better proportions)
+  - Canvas dimensions: 768×128px (wider to prevent text cutoff)
+  - Base sprite scale: 1.8×0.6 (compact for cleaner visualization)
+  - Adaptive scaling applies additional multiplier based on vector count
 
 **Onboarding Tour System:**
 - Multi-step progressive disclosure tutorial for first-time users
@@ -174,10 +179,26 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - **Label Collision Detection:** Screen-space algorithm prevents label overlap
   - Sorts labels by importance (descending)
   - Hides lower-importance labels that collide with higher-importance ones
-  - Enforces maximum label count (default 15, configurable 5-30)
+  - Enforces maximum label count (fixed at 10 for optimal readability)
 - **Performance:** Debounced updates (100ms) during camera movement
-- **UI Controls:** Toggle on/off and adjust max labels via View Settings panel
-- Enabled by default, can be disabled to show all vectors at full visibility
+- **No UI Controls:** LOD is always enabled with fixed settings for consistent experience
+- Always enabled to maintain visual clarity with many vectors
+
+**Adaptive Scaling System:**
+- **Vector Thickness:** Automatically adjusts based on vector count
+  - 10 or fewer vectors: Full thickness (scale 1.0)
+  - 50+ vectors: Minimum thickness (scale 0.4)
+  - Linear interpolation between these extremes
+  - Importance scoring adds 30% weight to thickness calculation
+- **Label Sizing:** Scales inversely with vector count for readability
+  - 10 or fewer vectors: Maximum size (scale 1.4)
+  - 50+ vectors: Minimum size (scale 0.7)
+  - Ensures labels remain readable at all density levels
+- **Model-Specific PCA Scaling:** Different models produce different clustering patterns
+  - MiniLM: Scale factor 5 (default spread)
+  - E5-small: Scale factor 8 (wider spread to prevent clustering)
+  - BGE-small: Scale factor 9 (widest spread for better separation)
+  - Applied during PCA projection to optimize visual distribution
 
 ### Important Implementation Details
 
@@ -245,6 +266,10 @@ GTM (GTM-THHLV3R3) is integrated for analytics. Code is present in index.html he
 15. **LOD importance weights** - The importance scoring weights (distance: 50, center: 30, similarity: 20, view angle: 10) can be tuned in constants.js. Ensure they remain balanced and sum to ~100 for predictable behavior.
 
 16. **LOD screen position caching** - LOD uses `vector.project(camera)` for screen-space calculations. This is relatively expensive, so updates are debounced during camera movement and forced only on state changes (selection, vector add/remove).
+
+17. **Camera initial position** - The camera's initial position is set in SceneManager.js and MUST use `CAMERA_CONFIG.DEFAULT_POSITION` from constants.js, not hardcoded values. Default is now 3.0 (closer than original 5.0) for better initial label visibility. The reset button also uses this same position.
+
+18. **Adaptive scaling coordination** - Vector thickness and label size both scale with vector count but in opposite directions. Thickness decreases with more vectors (to reduce clutter) while maintaining minimum visibility. Label sizing also decreases but more gradually to maintain readability. Both systems work together through LODController.
 
 ## File Dependencies
 
