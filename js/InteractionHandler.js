@@ -353,6 +353,24 @@ export class InteractionHandler {
   }
 
   updateLabelVisuals(hasSelection, twoSelected) {
+    // In comparison mode, LOD system handles label visibility
+    if (twoSelected) {
+      this.state.getLabelSprites().forEach((label) => {
+        // In comparison mode, only animate selected labels
+        if (this.state.isSelected(label.userData.name)) {
+          this.animator.animateLabel(label, {
+            opacity: LABEL_CONFIG.OPACITY_SELECTED,
+            scaleX: LABEL_CONFIG.SCALE_SELECTED.x,
+            scaleY: LABEL_CONFIG.SCALE_SELECTED.y,
+            visible: true
+          })
+        }
+        // Non-selected labels will be hidden by LOD system
+      })
+      return
+    }
+
+    // Normal mode - animate all labels
     this.state.getLabelSprites().forEach((label) => {
       let targetOpacity, targetScaleX, targetScaleY, targetVisible
 
@@ -361,11 +379,6 @@ export class InteractionHandler {
         targetScaleX = LABEL_CONFIG.SCALE_SELECTED.x
         targetScaleY = LABEL_CONFIG.SCALE_SELECTED.y
         targetVisible = true
-      } else if (twoSelected) {
-        targetOpacity = LABEL_CONFIG.OPACITY_HIDDEN
-        targetScaleX = LABEL_CONFIG.SCALE_FADED.x
-        targetScaleY = LABEL_CONFIG.SCALE_FADED.y
-        targetVisible = false
       } else if (hasSelection) {
         targetOpacity = LABEL_CONFIG.OPACITY_FADED
         targetScaleX = LABEL_CONFIG.SCALE_FADED.x

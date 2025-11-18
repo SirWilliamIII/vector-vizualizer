@@ -134,6 +134,20 @@ export class LODController {
 
     const cameraPos = this.camera.position.clone()
     const selectedVectors = this.state.getSelectedVectors()
+    const isComparisonMode = this.state.isComparisonMode()
+
+    // In comparison mode (2 vectors selected), only show selected labels
+    if (isComparisonMode) {
+      const vectorNames = this.state.getAllVectorNames()
+      vectorNames.forEach(name => {
+        const label = this.state.getLabelSprite(name)
+        if (label) {
+          // Only show labels for selected vectors
+          label.visible = selectedVectors.includes(name)
+        }
+      })
+      return // Skip normal LOD processing in comparison mode
+    }
 
     // Calculate importance for all vectors
     const importanceMap = new Map()
