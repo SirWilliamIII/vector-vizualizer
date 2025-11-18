@@ -49,7 +49,6 @@ export class InteractionHandler {
     // Mouse events
     window.addEventListener('mousemove', (e) => this.onMouseMove(e))
     window.addEventListener('click', (e) => this.onMouseClick(e))
-    window.addEventListener('contextmenu', (e) => this.onContextMenu(e))
 
     // Touch events for mobile/tablet - attach to canvas for better control
     const canvas = this.sceneManager.renderer.domElement
@@ -154,38 +153,11 @@ export class InteractionHandler {
     }
   }
 
-  onContextMenu(event) {
-    // Right-click to delete vector
-    this.sceneManager.updatePointerFromEvent(event)
-
-    const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
-    const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
-
-    let name = null
-
-    if (meshIntersects.length > 0) {
-      name = meshIntersects[0].object.userData.name
-    } else if (labelIntersects.length > 0) {
-      name = labelIntersects[0].object.userData.name
-    }
-
-    if (name) {
-      event.preventDefault()
-      this.deleteVector(name)
-    }
-  }
-
   onKeyDown(event) {
     if (event.key === 'Escape' && this.state.hasSelection()) {
       this.state.clearSelection()
       this.cameraController.restoreSavedState()
       this.updateSelection()
-    } else if (event.key === 'Delete' || event.key === 'Backspace') {
-      const hoveredVector = this.state.getHoveredVector()
-      if (hoveredVector) {
-        event.preventDefault()
-        this.deleteVector(hoveredVector)
-      }
     }
   }
 
@@ -517,22 +489,19 @@ export class InteractionHandler {
   }
 
   /**
-   * Delete a vector and trigger PCA re-projection
-   * @param {string} name - The vector name to delete
+   * Delete selected vectors and trigger PCA re-projection
    */
-  async deleteVector(name) {
-    if (!this.vectorManager.hasVector(name)) {
+  async deleteSelectedVectors() {
+    const selectedVectors = this.state.getSelectedVectors()
+
+    if (selectedVectors.length === 0) {
       return
     }
 
-    // Clear hover state if deleting hovered vector
-    if (this.state.getHoveredVector() === name) {
-      this.state.clearHover()
-      document.body.style.cursor = 'default'
-    }
-
-    // Remove from scene and state
-    this.vectorManager.removeVector(name)
+    // Remove all selected vectors
+    selectedVectors.forEach(name => {
+      this.vectorManager.removeVector(name)
+    })
 
     // Check if we have any vectors left
     const remainingCount = this.vectorManager.getVectorCount()
