@@ -20,8 +20,8 @@ export const CAMERA_CONFIG = {
     NEAR_CLIP: 0.1,
     FAR_CLIP: 1000,
 
-    // Default camera position (optimal for 14 curated vectors)
-    DEFAULT_POSITION: { x: 6, y: 6, z: 6 },
+    // Default camera position (closer view for better label visibility)
+    DEFAULT_POSITION: { x: 3.0, y: 3.0, z: 3.0 },
 
     // Camera animation duration in milliseconds
     ANIMATION_DURATION_MS: 800
@@ -45,7 +45,7 @@ export const CONTROLS_CONFIG = {
     PAN_SPEED: 0.8,
 
     // Minimum camera distance from target
-    MIN_DISTANCE: 2,
+    MIN_DISTANCE: 1.2,
 
     // Maximum camera distance from target
     MAX_DISTANCE: 50,
@@ -120,6 +120,21 @@ export const LIGHTING_CONFIG = {
 };
 
 // ============================================================================
+// MODEL-SPECIFIC SCALING
+// ============================================================================
+
+export const MODEL_SCALING = {
+  // MiniLM produces well-distributed embeddings, use default scale
+  minilm: 5,
+
+  // E5-small tends to cluster more tightly, needs more spread
+  e5small: 8,
+
+  // BGE-small also clusters tightly, needs significant spread
+  bgesmall: 9
+}
+
+// ============================================================================
 // VECTOR ARROW VISUAL CONFIGURATION
 // ============================================================================
 
@@ -133,6 +148,28 @@ export const VECTOR_CONFIG = {
     CONE_HEIGHT_RATIO: 0.12,       // Cone is 12% of total arrow length
     CONE_RADIUS_MULTIPLIER: 1.9,   // Cone radius relative to shaft
     CONE_SEGMENTS: 32,
+
+    // Adaptive thickness based on vector count
+    ADAPTIVE_THICKNESS: {
+        ENABLED: true,
+        MIN_SCALE: 0.4,           // Minimum thickness scale (40% of original)
+        MAX_SCALE: 1.0,           // Maximum thickness scale (100% original)
+        OPTIMAL_COUNT: 10,        // Number of vectors for full thickness
+        CROWDED_COUNT: 50,        // Number of vectors for minimum thickness
+        IMPORTANCE_WEIGHT: 0.3    // How much importance affects thickness (0-1)
+    },
+
+    // Adaptive label sizing based on vector count
+    ADAPTIVE_LABEL_SIZE: {
+        ENABLED: true,
+        MIN_SCALE: 0.7,           // Minimum label scale (70% of original) when crowded
+        MAX_SCALE: 1.4,           // Maximum label scale (140% of original) when sparse
+        OPTIMAL_COUNT: 10,        // Number of vectors for full-size labels
+        CROWDED_COUNT: 50,        // Number of vectors for minimum label size
+        FONT_SIZE_MIN: 28,        // Minimum font size in pixels
+        FONT_SIZE_MAX: 40,        // Maximum font size in pixels
+        FONT_SIZE_DEFAULT: 32     // Default font size (current setting)
+    },
 
     // Visual effects
     GLOW_THICKNESS_MULTIPLIER: 1.4,  // Glow tube thickness
@@ -219,10 +256,11 @@ export const LABEL_CONFIG = {
     // Label positioning
     POSITION_MULTIPLIER: 1.1,  // Distance from vector tip
 
-    // Label scales for different states
-    SCALE_NORMAL: { x: 2, y: 1, z: 1 },
-    SCALE_SELECTED: { x: 2.3, y: 1.15, z: 1 },
-    SCALE_FADED: { x: 1.6, y: 0.8, z: 1 },
+    // Label scales for different states (adjusted for base scale 1.8 x 0.6)
+    SCALE_NORMAL: { x: 1.0, y: 1.0, z: 1 },        // Use base scale as-is
+    SCALE_SELECTED: { x: 1.15, y: 1.15, z: 1 },    // 15% larger when selected
+    SCALE_COMPARISON: { x: 0.8, y: 0.8, z: 1 },    // 20% smaller in comparison mode
+    SCALE_FADED: { x: 0.8, y: 0.8, z: 1 },         // 20% smaller when faded
 
     // Label opacity for different states
     OPACITY_NORMAL: 0.95,
@@ -230,8 +268,8 @@ export const LABEL_CONFIG = {
     OPACITY_FADED: 0.3,
     OPACITY_HIDDEN: 0,
 
-    // Axis label scale
-    AXIS_LABEL_SCALE: { x: 0.8, y: 0.4, z: 1 }
+    // Axis label scale (smaller to match new label sizing)
+    AXIS_LABEL_SCALE: { x: 0.6, y: 0.3, z: 1 }
 };
 
 // ============================================================================
@@ -585,13 +623,13 @@ export const EXPORT_CONFIG = {
 // ============================================================================
 
 export const LOD_CONFIG = {
-    // Enable LOD by default
+    // Enable LOD by default (always on now)
     ENABLED_DEFAULT: true,
 
-    // Maximum number of labels to show at once
-    MAX_LABELS_DEFAULT: 15,
-    MAX_LABELS_MIN: 5,
-    MAX_LABELS_MAX: 30,
+    // Maximum number of labels to show at once (fixed at 10 for cleaner visualization)
+    MAX_LABELS_DEFAULT: 10,
+    MAX_LABELS_MIN: 10,  // Fixed value, no longer adjustable
+    MAX_LABELS_MAX: 10,  // Fixed value, no longer adjustable
 
     // Debounce time for updates during camera movement (milliseconds)
     UPDATE_DEBOUNCE_MS: 100,

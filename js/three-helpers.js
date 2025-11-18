@@ -189,26 +189,26 @@ export function createTextLabel(text, color) {
 
     // Higher resolution for sharp rendering
     const scale = 4;
-    canvas.width = 512 * scale;
-    canvas.height = 160 * scale;
+    canvas.width = 768 * scale;  // Increased to prevent cutoffs
+    canvas.height = 128 * scale;  // Reduced height for smaller labels
     context.scale(scale, scale);
 
     // Clear with full transparency
-    context.clearRect(0, 0, 512, 160);
+    context.clearRect(0, 0, 768, 128);
 
     // Enable better text rendering
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
 
-    // Modern, clean sans-serif font
-    context.font = '500 48px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    // Smaller font for better proportions with vectors
+    context.font = '500 32px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';  // Reduced from 42px
     context.textAlign = 'left';
     context.textBaseline = 'middle';
     context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
 
-    // Manual letter spacing for better readability
+    // Tighter letter spacing for compactness
     const letters = text.split('');
-    const letterSpacing = 6; // pixels between letters
+    const letterSpacing = 2; // Reduced from 4 pixels between letters
     let totalWidth = 0;
 
     // Calculate total width with spacing
@@ -217,26 +217,26 @@ export function createTextLabel(text, color) {
     });
     totalWidth -= letterSpacing; // Remove trailing space
 
-    let xPos = 256 - totalWidth / 2;
+    let xPos = 384 - totalWidth / 2;  // Center for 768px canvas
 
     // Draw with shadow backdrop
     context.shadowColor = 'rgba(10, 14, 39, 0.8)';
-    context.shadowBlur = 16;
+    context.shadowBlur = 12;  // Reduced from 16 for smaller labels
     context.shadowOffsetX = 0;
     context.shadowOffsetY = 0;
 
     letters.forEach(letter => {
-        context.fillText(letter, xPos, 80);
+        context.fillText(letter, xPos, 64);  // Adjusted Y position for 128px height
         xPos += context.measureText(letter).width + letterSpacing;
     });
 
     // Add subtle colored glow (redraw with glow)
-    xPos = 256 - totalWidth / 2;
+    xPos = 384 - totalWidth / 2;  // Center for 768px canvas
     context.shadowColor = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.4)`;
-    context.shadowBlur = 12;
+    context.shadowBlur = 8;  // Reduced from 12 for smaller labels
 
     letters.forEach(letter => {
-        context.fillText(letter, xPos, 80);
+        context.fillText(letter, xPos, 64);  // Adjusted Y position
         xPos += context.measureText(letter).width + letterSpacing;
     });
 
@@ -255,7 +255,7 @@ export function createTextLabel(text, color) {
         sizeAttenuation: true
     });
     const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(2, 1, 1);
+    sprite.scale.set(1.8, 0.6, 1);  // Smaller scale: 768/128 aspect ratio = 6:1, so 1.8:0.6 = 3:1 visual
     sprite.userData.baseScale = sprite.scale.clone();
 
     return sprite;
@@ -363,7 +363,7 @@ export function createAxisArrow(start, end, color, thickness) {
 export function addAxisLabel(text, position, color, scene) {
     const sprite = createTextLabel(text, color);
     sprite.position.set(...position);
-    sprite.scale.set(0.8, 0.4, 1);
+    sprite.scale.set(0.5, 0.25, 1);  // Smaller scale for axis labels (about 50% of regular labels)
     scene.add(sprite);
     return sprite;
 }
@@ -458,7 +458,7 @@ export function createAngleArc(start, end, color, angleDegrees) {
     context.fill();
     context.stroke();
     
-    context.font = '600 32px -apple-system, sans-serif';
+    context.font = '600 28px -apple-system, sans-serif';  // Reduced from 32px
     context.fillStyle = '#f8fafc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
@@ -477,7 +477,7 @@ export function createAngleArc(start, end, color, angleDegrees) {
     });
     const sprite = new THREE.Sprite(spriteMaterial);
     sprite.position.copy(labelPos);
-    sprite.scale.set(1.6, 0.8, 1);
+    sprite.scale.set(1.2, 0.6, 1);  // Reduced from 1.6, 0.8 for better visibility
     sprite.userData.depthResponsive = true;
     sprite.userData.baseScale = sprite.scale.clone();
     sprite.userData.baseOpacity = spriteMaterial.opacity;
@@ -547,7 +547,7 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     context.fill();
     context.stroke();
     
-    context.font = '600 64px -apple-system, BlinkMacSystemFont, sans-serif';
+    context.font = '600 48px -apple-system, BlinkMacSystemFont, sans-serif';  // Reduced from 64px
     context.fillStyle = '#f8fafc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
@@ -577,7 +577,7 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     
     const offset = perpendicular.multiplyScalar(2.2);
     sprite.position.copy(midpoint).add(offset);
-    sprite.scale.set(2.2, 1.1, 1);
+    sprite.scale.set(1.6, 0.8, 1);  // Reduced from 2.2, 1.1 for better visibility
     sprite.renderOrder = 999;
     sprite.userData.depthResponsive = true;
     sprite.userData.baseScale = sprite.scale.clone();

@@ -356,12 +356,12 @@ export class InteractionHandler {
     // In comparison mode, LOD system handles label visibility
     if (twoSelected) {
       this.state.getLabelSprites().forEach((label) => {
-        // In comparison mode, only animate selected labels
+        // In comparison mode, only animate selected labels with smaller scale
         if (this.state.isSelected(label.userData.name)) {
           this.animator.animateLabel(label, {
             opacity: LABEL_CONFIG.OPACITY_SELECTED,
-            scaleX: LABEL_CONFIG.SCALE_SELECTED.x,
-            scaleY: LABEL_CONFIG.SCALE_SELECTED.y,
+            scaleX: LABEL_CONFIG.SCALE_COMPARISON.x,
+            scaleY: LABEL_CONFIG.SCALE_COMPARISON.y,
             visible: true
           })
         }

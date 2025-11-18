@@ -67,6 +67,7 @@ echo ""
 cleanup() {
     echo ""
     echo "🛑 Stopping servers..."
+    echo "🛑 Stopping connection to ngrok tunnel..."
     kill $SERVER_PID 2>/dev/null
     kill $NGROK_PID 2>/dev/null
     exit 0

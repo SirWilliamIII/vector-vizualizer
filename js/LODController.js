@@ -22,7 +22,8 @@ import {
   LOD_CONFIG,
   LOD_IMPORTANCE_WEIGHTS,
   LOD_THRESHOLDS,
-  LOD_VISUAL_SCALES
+  LOD_VISUAL_SCALES,
+  VECTOR_CONFIG
 } from './constants.js'
 
 export class LODController {
@@ -47,6 +48,48 @@ export class LODController {
   // ========================================================================
   // IMPORTANCE CALCULATION
   // ========================================================================
+
+  /**
+   * Calculate global thickness multiplier based on vector count
+   * @returns {number} Thickness multiplier (0.4 to 1.0)
+   */
+  calculateGlobalThicknessMultiplier() {
+    const vectorCount = Object.keys(vectors).length
+    const config = VECTOR_CONFIG.ADAPTIVE_THICKNESS
+
+    if (!config.ENABLED) return 1.0
+
+    // Linear interpolation between optimal and crowded counts
+    if (vectorCount <= config.OPTIMAL_COUNT) {
+      return config.MAX_SCALE
+    } else if (vectorCount >= config.CROWDED_COUNT) {
+      return config.MIN_SCALE
+    } else {
+      const ratio = (vectorCount - config.OPTIMAL_COUNT) / (config.CROWDED_COUNT - config.OPTIMAL_COUNT)
+      return config.MAX_SCALE - (ratio * (config.MAX_SCALE - config.MIN_SCALE))
+    }
+  }
+
+  /**
+   * Calculate adaptive label scale based on vector count
+   * @returns {number} Label scale multiplier (0.7 to 1.4)
+   */
+  calculateAdaptiveLabelScale() {
+    const vectorCount = Object.keys(vectors).length
+    const config = VECTOR_CONFIG.ADAPTIVE_LABEL_SIZE
+
+    if (!config.ENABLED) return 1.0
+
+    // Linear interpolation between optimal and crowded counts
+    if (vectorCount <= config.OPTIMAL_COUNT) {
+      return config.MAX_SCALE
+    } else if (vectorCount >= config.CROWDED_COUNT) {
+      return config.MIN_SCALE
+    } else {
+      const ratio = (vectorCount - config.OPTIMAL_COUNT) / (config.CROWDED_COUNT - config.OPTIMAL_COUNT)
+      return config.MAX_SCALE - (ratio * (config.MAX_SCALE - config.MIN_SCALE))
+    }
+  }
 
   /**
    * Calculate importance score for a vector (0-100)
@@ -194,6 +237,15 @@ export class LODController {
 
     const visualConfig = LOD_VISUAL_SCALES[tier]
 
+    // Calculate adaptive thickness scaling
+    const globalThickness = this.calculateGlobalThicknessMultiplier()
+    const config = VECTOR_CONFIG.ADAPTIVE_THICKNESS
+
+    // Blend between global and importance-based thickness
+    const importanceThickness = 0.7 + (importance / 100) * 0.3  // 0.7 to 1.0
+    const finalThickness = globalThickness * (1 - config.IMPORTANCE_WEIGHT) +
+                           (globalThickness * importanceThickness) * config.IMPORTANCE_WEIGHT
+
     // Update vector geometry
     vectorGroup.children.forEach(child => {
       if (child.userData?.isHitbox) return
@@ -205,26 +257,72 @@ export class LODController {
         child.material.opacity = baseOpacity * visualConfig.vectorOpacity
       }
 
-      // Adjust scale (primarily for cone/arrowhead)
-      if (child.geometry?.type === 'ConeGeometry') {
-        child.scale.setScalar(visualConfig.coneScale)
+      // Adjust scale for shaft and cone based on adaptive thickness
+      if (child.geometry?.type === 'CylinderGeometry') {
+        // Store original scale if not stored
+        if (!child.userData.baseScaleX) {
+          child.userData.baseScaleX = child.scale.x
+          child.userData.baseScaleZ = child.scale.z
+        }
+        // Calculate target scale
+        const targetScaleX = child.userData.baseScaleX * finalThickness
+        const targetScaleZ = child.userData.baseScaleZ * finalThickness
+
+        // Smooth transition with lerp
+        const lerpFactor = 0.15  // Adjust for smoother/snappier transitions
+        child.scale.x = child.scale.x + (targetScaleX - child.scale.x) * lerpFactor
+        child.scale.z = child.scale.z + (targetScaleZ - child.scale.z) * lerpFactor
+      } else if (child.geometry?.type === 'ConeGeometry') {
+        // Store original scale if not stored
+        if (!child.userData.baseScale) {
+          child.userData.baseScale = child.scale.x
+        }
+        // Calculate target scale
+        const targetScale = child.userData.baseScale * visualConfig.coneScale * finalThickness
+
+        // Smooth transition with lerp
+        const lerpFactor = 0.15
+        const currentScale = child.scale.x
+        child.scale.setScalar(currentScale + (targetScale - currentScale) * lerpFactor)
+      } else if (child.geometry?.type === 'RingGeometry') {
+        // Base glow - smooth transition
+        const targetScale = finalThickness
+        const lerpFactor = 0.15
+        const currentScale = child.scale.x
+        child.scale.setScalar(currentScale + (targetScale - currentScale) * lerpFactor)
       }
     })
 
     // Update label
     if (!labelSprite.userData) labelSprite.userData = {}
 
+    // Get adaptive label scale based on vector count
+    const adaptiveLabelScale = this.calculateAdaptiveLabelScale()
+
     // Store LOD-controlled visibility separate from selection state
     labelSprite.userData.lodOpacity = visualConfig.labelOpacity
-    labelSprite.userData.lodScale = visualConfig.labelScale
+    labelSprite.userData.lodScale = visualConfig.labelScale * adaptiveLabelScale
 
-    // Only apply if not in selection mode
-    if (!this.state.isComparisonMode() && !this.state.isSelected(labelSprite.userData.name)) {
+    // Apply adaptive scaling to all labels (even selected ones)
+    const baseScale = labelSprite.userData.baseScale || new THREE.Vector3(1.8, 0.6, 1)
+
+    // Apply scale differently based on selection state
+    let targetScale
+    if (this.state.isComparisonMode() || this.state.isSelected(labelSprite.userData.name)) {
+      // Selected labels get adaptive scale but maintain their selection multiplier
+      const selectionScale = this.state.isComparisonMode() ? 0.8 : 1.15  // From LABEL_CONFIG
+      targetScale = selectionScale * adaptiveLabelScale
+    } else {
+      // Non-selected labels get LOD scale * adaptive scale
       labelSprite.material.opacity = visualConfig.labelOpacity
-
-      const baseScale = labelSprite.userData.baseScale || new THREE.Vector3(1, 1, 1)
-      labelSprite.scale.copy(baseScale).multiplyScalar(visualConfig.labelScale)
+      targetScale = visualConfig.labelScale * adaptiveLabelScale
     }
+
+    // Smooth transition with lerp
+    const lerpFactor = 0.15
+    const currentScaleMultiplier = labelSprite.scale.x / baseScale.x  // Get current multiplier
+    const newScaleMultiplier = currentScaleMultiplier + (targetScale - currentScaleMultiplier) * lerpFactor
+    labelSprite.scale.copy(baseScale).multiplyScalar(newScaleMultiplier)
   }
 
   /**

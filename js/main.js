@@ -122,37 +122,16 @@ function animate() {
     cameraRightVec.set(1, 0, 0)
   }
 
-  // Update vector arrow prominence
-  state.getVectorGroups().forEach((arrow) => {
-    if (!arrow.userData.coords) return
-    const tipPosition = new THREE.Vector3(...arrow.userData.coords)
-    const distance = cameraPosition.distanceTo(tipPosition)
-    const thicknessScale = clamp(mapRange(distance, 4, 20, 1.2, 0.45), 0.45, 1.2)
-    const opacityFactor = clamp(mapRange(distance, 5, 18, 1.0, 0.3), 0.3, 1.0)
+  // Vector prominence is now handled by LODController with adaptive thickness
+  // based on vector count, importance scores, and multiple factors
+  // (Commenting out old distance-based scaling to avoid conflicts)
 
-    arrow.children.forEach((child) => {
-      if (child.userData?.isHitbox) return
+  // Update LOD system (handles vector thickness and label visibility)
+  if (lodController.enabled) {
+    lodController.updateAllVisibility()
+  }
 
-      if (child.userData?.baseScale) {
-        const base = child.userData.baseScale
-        if (child.userData.part === 'shaft' || child.userData.part === 'glow') {
-          child.scale.set(base.x * thicknessScale, base.y, base.z * thicknessScale)
-        } else if (child.userData.part === 'cone') {
-          const heightScale = 0.85 + thicknessScale * 0.3
-          child.scale.set(base.x * thicknessScale, base.y * heightScale, base.z * thicknessScale)
-        } else if (child.userData.part === 'baseGlow') {
-          child.scale.set(base.x * thicknessScale * 1.1, base.y, base.z * thicknessScale * 1.1)
-        }
-      }
-
-      if (child.material && child.userData?.baseOpacity !== undefined) {
-        child.material.opacity = child.userData.baseOpacity * opacityFactor
-        child.material.transparent = true
-      }
-    })
-  })
-
-  // Update label sprite prominence and positioning
+  // Update label sprite positioning only (scaling is handled by LOD)
   state.getLabelSprites().forEach((sprite) => {
     if (!sprite.userData) return
     if (!sprite.userData.basePosition) {
@@ -167,8 +146,8 @@ function animate() {
       lateral.copy(cameraRightVec)
     }
     const upDir = new THREE.Vector3().crossVectors(toCamera, lateral).normalize()
-    const lateralOffset = clamp(mapRange(distance, 3, 18, 0.35, 0.08), 0.08, 0.35)
-    const verticalOffset = lateralOffset * 0.35
+    const lateralOffset = clamp(mapRange(distance, 3, 18, 0.25, 0.05), 0.05, 0.25)  // Reduced for smaller labels
+    const verticalOffset = lateralOffset * 0.3  // Slightly less vertical offset
     const offsetSign = sprite.userData.offsetSeed || Math.sign(basePos.x) || 1
     const finalPos = basePos
       .clone()
@@ -176,19 +155,14 @@ function animate() {
       .add(upDir.multiplyScalar(verticalOffset))
     sprite.position.copy(finalPos)
 
+    // Distance-based opacity (scaling is handled by LOD with adaptive sizing)
     const opacity = clamp(mapRange(distance, 5, 18, 1.0, 0.25), 0.25, 1.0)
-    const scaleFactor = clamp(mapRange(distance, 4, 20, 1.2, 0.45), 0.45, 1.2)
     const hoverBoost = sprite.userData.isHovered ? 1.1 : 1
-    const baseScale = sprite.userData.baseScale || new THREE.Vector3(2, 1, 1)
 
     if (sprite.material) {
-      sprite.material.opacity = Math.min(1, opacity * (sprite.userData.isHovered ? 1.1 : 1))
+      sprite.material.opacity = Math.min(1, opacity * hoverBoost)
     }
-    sprite.scale.set(
-      baseScale.x * scaleFactor * hoverBoost,
-      baseScale.y * scaleFactor * hoverBoost,
-      baseScale.z
-    )
+    // Note: Scale is now handled by LODController.applyLOD() with adaptive sizing
   })
 
   // Depth-based scaling for annotation sprites
@@ -526,13 +500,8 @@ window.addEventListener('batchUploadComplete', async () => {
 // LOD CONTROL FUNCTIONS
 // ========================================================================
 
-window.toggleLOD = function(enabled) {
-  lodController.setEnabled(enabled)
-}
-
-window.setMaxLabels = function(count) {
-  lodController.setMaxLabels(count)
-}
+// LOD is now always enabled with a fixed max of 10 labels
+// View Settings panel has been removed for simplicity
 
 // ========================================================================
 // ONBOARDING TOUR

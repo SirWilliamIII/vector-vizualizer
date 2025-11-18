@@ -43,46 +43,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <strong>Hover</strong> over vectors to see relationships<br>
                 <strong>Click</strong> two vectors to compare them<br>
                 <strong>Drag</strong> to rotate the view<br>
-                <strong>Right-click</strong> or <strong>Delete</strong> to remove vectors<br>
+                <strong>Select</strong> and click Delete button to remove vectors<br>
                 <div class="instruction-hint">**Try adding phrases to see how they cluster</div>
             </div>
 
-            <div class="view-settings">
-                <h2>View Settings</h2>
-                <div class="setting-item">
-                    <label class="setting-label">
-                        <input type="checkbox" id="lod-toggle" checked onchange="toggleLOD(this.checked)">
-                        <span>Smart Visibility</span>
-                        <span class="help-icon" data-tooltip="lod-smart-visibility">
-                            <span class="help-icon-text">?</span>
-                            <span class="help-tooltip">
-                                <strong class="tooltip-heading">Smart Visibility</strong>
-                                <p>Automatically adjusts vector and label prominence based on:</p>
-                                <ul class="tooltip-list">
-                                    <li>Camera distance</li>
-                                    <li>Screen position</li>
-                                    <li>Semantic relevance</li>
-                                </ul>
-                                <p style="margin-top: 8px;">Prevents label overlap and reduces visual clutter with many vectors.</p>
-                            </span>
-                        </span>
-                    </label>
-                </div>
-                <div class="setting-item">
-                    <label class="setting-label">
-                        <span>Max Labels: <span id="max-labels-value">15</span></span>
-                    </label>
-                    <input
-                        type="range"
-                        id="max-labels"
-                        min="5"
-                        max="30"
-                        value="15"
-                        class="setting-slider"
-                        oninput="document.getElementById('max-labels-value').textContent = this.value; setMaxLabels(parseInt(this.value))"
-                    >
-                </div>
-            </div>
         </div>
 
         <div class="top-row">

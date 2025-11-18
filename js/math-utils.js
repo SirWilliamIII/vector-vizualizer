@@ -1,4 +1,6 @@
 // Mathematical utility functions
+import { MODEL_SCALING } from './constants.js'
+import { getCurrentModel } from './embeddings.js'
 
 export function cosineSimilarity(v1, v2) {
     const dot = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
@@ -34,12 +36,12 @@ export function clamp(value, min, max) {
 }
 
 // Proper PCA for dimensionality reduction (384D -> 3D)
-export function pcaTo3D(embeddings) {
+export function pcaTo3D(embeddings, modelKey = null) {
     const words = Object.keys(embeddings).filter(w => embeddings[w] !== null);
     const matrix = words.map(w => embeddings[w]);
-    
+
     if (matrix.length === 0) return null;
-    
+
     if (matrix.length === 1) {
         console.log('Single vector: placing at [1, 0, 0]');
         return [[3, 0, 0]];
@@ -98,13 +100,17 @@ export function pcaTo3D(embeddings) {
     }
     
     // Project data onto components
-    const projected = centered.map(row => 
-        components.map(comp => 
+    const projected = centered.map(row =>
+        components.map(comp =>
             row.reduce((sum, val, j) => sum + val * comp[j], 0)
         )
     );
-    
-    // Scale to reasonable size
-    const scale = 5;
+
+    // Use model-specific scaling for better visual distribution
+    const currentModelKey = modelKey || getCurrentModel();
+    const scale = MODEL_SCALING[currentModelKey] || 5;  // Default to 5 if model not found
+
+    console.log(`Using scale factor ${scale} for model: ${currentModelKey}`);
+
     return projected.map(p => p.map(val => val * scale));
 }

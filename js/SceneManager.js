@@ -77,8 +77,12 @@ export class SceneManager {
       CAMERA_CONFIG.NEAR_CLIP,
       CAMERA_CONFIG.FAR_CLIP
     )
-    // Static position for intro animation
-    this.camera.position.set(5, 5, 5)
+    // Use default position from constants
+    this.camera.position.set(
+      CAMERA_CONFIG.DEFAULT_POSITION.x,
+      CAMERA_CONFIG.DEFAULT_POSITION.y,
+      CAMERA_CONFIG.DEFAULT_POSITION.z
+    )
   }
 
   createRenderer() {
