@@ -33,6 +33,7 @@ import { AnimationController } from './AnimationController.js'
 import { CameraController } from './CameraController.js'
 import { VectorManager } from './VectorManager.js'
 import { InteractionHandler } from './InteractionHandler.js'
+import { LODController } from './LODController.js'
 
 import {
   STATUS_CONFIG,
@@ -62,7 +63,13 @@ const interactionHandler = new InteractionHandler(
   sceneManager,
   state,
   animator,
-  cameraController
+  cameraController,
+  vectorManager
+)
+const lodController = new LODController(
+  sceneManager.camera,
+  sceneManager.renderer,
+  state
 )
 
 // ========================================================================
@@ -82,6 +89,20 @@ if (projected3D && projected3D.length > 0) {
 
 // Create initial vector visualizations
 vectorManager.initializeVectors(vectors)
+
+// ========================================================================
+// LOD SYSTEM EVENT LISTENERS
+// ========================================================================
+
+// Update LOD on camera movement (debounced)
+sceneManager.controls.addEventListener('change', () => {
+  lodController.requestUpdate()
+})
+
+// Update LOD on selection changes
+state.on('selectionChanged', () => {
+  lodController.forceUpdate()
+})
 
 // ========================================================================
 // RENDERING LOOP
@@ -355,6 +376,7 @@ window.addCustomVector = async function () {
   try {
     await vectorManager.addVector(word, selectedModel)
     interactionHandler.updateSelection()
+    lodController.forceUpdate()
     if (input) input.value = ''
   } catch (error) {
     console.error('Error adding vector:', error)
@@ -376,6 +398,7 @@ window.clearCustomVectors = function () {
 
   interactionHandler.updateSelection()
   updateInfoPanel(state.getSelectedVectors())
+  lodController.forceUpdate()
 
   showStatus(`Cleared ${count} custom vector(s)`, 'success')
   setTimeout(() => clearStatus(), STATUS_CONFIG.ERROR_TIMEOUT_MS)
@@ -391,6 +414,7 @@ window.startFresh = function () {
   vectorManager.clearAllVectors()
   state.clearSelection()
   updateInfoPanel([])
+  lodController.forceUpdate()
 
   showStatus('Canvas cleared! Add your first word below.', 'success')
   setTimeout(() => clearStatus(), STATUS_CONFIG.SUCCESS_TIMEOUT_MS)
@@ -495,7 +519,20 @@ window.addEventListener('batchUploadComplete', async () => {
   // Recreate all visualizations after batch upload
   await vectorManager.recreateAllVisualizations()
   interactionHandler.updateSelection()
+  lodController.forceUpdate()
 })
+
+// ========================================================================
+// LOD CONTROL FUNCTIONS
+// ========================================================================
+
+window.toggleLOD = function(enabled) {
+  lodController.setEnabled(enabled)
+}
+
+window.setMaxLabels = function(count) {
+  lodController.setMaxLabels(count)
+}
 
 // ========================================================================
 // ONBOARDING TOUR

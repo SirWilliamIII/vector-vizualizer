@@ -86,7 +86,8 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - **AnimationController.js** - Animation orchestration (vector animations, camera movements, easing)
 - **CameraController.js** - Camera operations (focus on vectors, state save/restore, reset)
 - **VectorManager.js** - Vector CRUD operations (add, remove, update, model switching)
-- **InteractionHandler.js** - Mouse/keyboard event handling (hover, selection, raycasting)
+- **InteractionHandler.js** - Mouse/keyboard/touch event handling (hover, selection, raycasting, deletion)
+- **LODController.js** - Level-of-detail system for visual clutter reduction (importance scoring, label collision detection)
 
 **Utility Modules:**
 - **constants.js** - All configuration constants (91+ named constants replacing magic numbers)
@@ -124,6 +125,10 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - Selection allows up to 2 vectors; adding a 3rd removes the first
 - Visual feedback uses animated transitions via `animateVector()` and manual RAF loops
 - Two vectors selected triggers automatic camera focusing and annotation rendering
+- **Vector Deletion:** Right-click on vector or press Delete/Backspace while hovering to remove
+  - Deletion triggers PCA re-projection of all remaining vectors
+  - Clears selection and hover state if deleted vector is selected/hovered
+  - Updates visualization automatically after deletion
 
 **Batch Upload System:**
 - Entries are separated by blank lines (regex: `/\n\s*\n/`) to allow multi-line text
@@ -153,6 +158,26 @@ The codebase follows an ES6 module architecture with clear separation of concern
 - Tour state persisted in localStorage to show only once per user
 - Manual trigger available via "Tour" button in navigation
 - Overlay system with backdrop and positioned tooltips
+
+**LOD (Level of Detail) System:**
+- Dynamic visual clutter reduction for scenes with many vectors
+- **Importance Scoring:** Calculates 0-100 score based on multiple factors:
+  - Selection state (100 for selected, 90 for hovered - always visible)
+  - Camera distance (closer = more important)
+  - Screen center proximity (center of viewport = more important)
+  - Semantic relevance (similar to selected vectors = more important)
+  - View angle (pointing toward/away from camera = more important)
+- **Visual Adjustments:** Based on importance tier (high/medium/low/minimal):
+  - Vector opacity and cone scale adjusted
+  - Label opacity and scale adjusted
+  - Low importance vectors remain visible but de-emphasized
+- **Label Collision Detection:** Screen-space algorithm prevents label overlap
+  - Sorts labels by importance (descending)
+  - Hides lower-importance labels that collide with higher-importance ones
+  - Enforces maximum label count (default 15, configurable 5-30)
+- **Performance:** Debounced updates (100ms) during camera movement
+- **UI Controls:** Toggle on/off and adjust max labels via View Settings panel
+- Enabled by default, can be disabled to show all vectors at full visibility
 
 ### Important Implementation Details
 
@@ -213,6 +238,14 @@ GTM (GTM-THHLV3R3) is integrated for analytics. Code is present in index.html he
 
 12. **Batch upload triggers full re-projection** - Like adding individual vectors, batch uploads require ALL vectors to be re-projected via PCA and all Three.js objects to be recreated. This is handled via the `batchUploadComplete` CustomEvent.
 
+13. **Vector deletion requires PCA re-projection** - When deleting a vector, all remaining vectors must be re-projected with PCA since the coordinate space changes. InteractionHandler.deleteVector() handles this automatically via vectorManager.recreateAllVisualizations().
+
+14. **LOD system and comparison mode** - When in comparison mode (2 vectors selected), LOD visual adjustments are bypassed to maintain proper comparison visuals. The system only applies label collision detection in comparison mode.
+
+15. **LOD importance weights** - The importance scoring weights (distance: 50, center: 30, similarity: 20, view angle: 10) can be tuned in constants.js. Ensure they remain balanced and sum to ~100 for predictable behavior.
+
+16. **LOD screen position caching** - LOD uses `vector.project(camera)` for screen-space calculations. This is relatively expensive, so updates are debounced during camera movement and forced only on state changes (selection, vector add/remove).
+
 ## File Dependencies
 
 ```
@@ -240,6 +273,10 @@ index.html
       ├─→ ui.js (DOM updates)
       ├─→ onboarding.js (progressive disclosure tutorial)
       ├─→ tooltip-mobile.js (touch-friendly tooltips)
+      ├─→ LODController.js (visual clutter reduction)
+      │     ├─→ vector-data.js (vectors access)
+      │     ├─→ math-utils.js (cosineSimilarity)
+      │     └─→ constants.js (LOD configs)
       └─→ constants.js (all configuration)
 ```
 

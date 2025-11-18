@@ -579,3 +579,67 @@ export const EXPORT_CONFIG = {
     FILENAME_PREFIX: 'vector-viz',
     FILENAME_SUFFIX: '.png'
 };
+
+// ============================================================================
+// LOD (Level of Detail) SYSTEM CONFIGURATION
+// ============================================================================
+
+export const LOD_CONFIG = {
+    // Enable LOD by default
+    ENABLED_DEFAULT: true,
+
+    // Maximum number of labels to show at once
+    MAX_LABELS_DEFAULT: 15,
+    MAX_LABELS_MIN: 5,
+    MAX_LABELS_MAX: 30,
+
+    // Debounce time for updates during camera movement (milliseconds)
+    UPDATE_DEBOUNCE_MS: 100,
+
+    // Padding around labels for collision detection (pixels)
+    LABEL_COLLISION_PADDING: 10
+};
+
+// Importance calculation weights (should sum to ~100)
+export const LOD_IMPORTANCE_WEIGHTS = {
+    DISTANCE: 50,        // Camera distance weight
+    CENTER: 30,          // Screen center proximity weight
+    SIMILARITY: 20,      // Semantic relevance weight (when vectors selected)
+    VIEW_ANGLE: 10       // Facing camera weight
+};
+
+// Importance score thresholds for different visibility tiers
+export const LOD_THRESHOLDS = {
+    HIGH: 80,      // Full visibility
+    MEDIUM: 60,    // Reduced visibility
+    LOW: 40,       // Minimal visibility
+    MINIMAL: 20    // Very low visibility
+};
+
+// Visual scales for different importance tiers
+export const LOD_VISUAL_SCALES = {
+    high: {
+        vectorOpacity: 1.0,
+        coneScale: 1.0,
+        labelOpacity: 1.0,
+        labelScale: 1.0
+    },
+    medium: {
+        vectorOpacity: 0.85,
+        coneScale: 0.9,
+        labelOpacity: 0.8,
+        labelScale: 0.85
+    },
+    low: {
+        vectorOpacity: 0.6,
+        coneScale: 0.75,
+        labelOpacity: 0.5,
+        labelScale: 0.7
+    },
+    minimal: {
+        vectorOpacity: 0.4,
+        coneScale: 0.6,
+        labelOpacity: 0.3,
+        labelScale: 0.6
+    }
+};
