@@ -112,6 +112,7 @@ export function injectMobileTooltipStyles() {
         min-width: 280px;
         max-width: calc(100vw - 40px);
         pointer-events: auto;
+        z-index: 1000 !important;
       }
 
       .help-tooltip::after {

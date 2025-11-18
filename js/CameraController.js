@@ -35,6 +35,12 @@ export class CameraController {
    * @param {Array<number>} coords2 - Second vector coordinates [x, y, z]
    */
   focusOnVectors(coords1, coords2) {
+    // If only one vector provided, focus on single vector
+    if (!coords2) {
+      this.focusOnSingleVector(coords1)
+      return
+    }
+
     // Save current camera state before zooming (only save once per comparison)
     if (!this.state.hasSavedCameraState()) {
       this.state.saveCameraState(this.camera.position, this.controls.target)
@@ -85,6 +91,57 @@ export class CameraController {
       this.controls,
       targetPos,
       centroid,
+      CAMERA_CONFIG.ANIMATION_DURATION_MS
+    )
+  }
+
+  /**
+   * Focus camera on a single vector (for search results)
+   * @param {Array<number>} coords - Vector coordinates [x, y, z]
+   */
+  focusOnSingleVector(coords) {
+    // Save current camera state before focusing
+    if (!this.state.hasSavedCameraState()) {
+      this.state.saveCameraState(this.camera.position, this.controls.target)
+    }
+
+    const vec = new THREE.Vector3(...coords)
+    const origin = new THREE.Vector3(0, 0, 0)
+
+    // Calculate a good viewing position
+    // Position camera closer to the vector for better visibility
+    const vectorLength = vec.length()
+    const normalizedVec = vec.clone().normalize()
+
+    // Create a perpendicular vector for camera positioning
+    let perpendicular = new THREE.Vector3()
+
+    // Choose perpendicular based on the vector's dominant axis
+    if (Math.abs(normalizedVec.y) < 0.9) {
+      perpendicular.crossVectors(normalizedVec, new THREE.Vector3(0, 1, 0))
+    } else {
+      perpendicular.crossVectors(normalizedVec, new THREE.Vector3(1, 0, 0))
+    }
+    perpendicular.normalize()
+
+    // Calculate camera position: zoom in closer to the vector
+    // Reduced distance multiplier from 2.5 to 1.5 for closer zoom
+    const cameraDistance = Math.max(vectorLength * 1.5, FOCUS_CONFIG.MIN_CAMERA_DISTANCE * 0.7)
+
+    // Position camera looking at the vector from a good angle
+    const cameraPos = vec.clone()
+      .add(perpendicular.multiplyScalar(cameraDistance * 0.5))
+      .add(new THREE.Vector3(0, cameraDistance * 0.3, cameraDistance * 0.3))
+
+    // Look at the vector tip for clear focus
+    const lookAtPoint = vec
+
+    // Animate camera movement
+    this.animator.animateCamera(
+      this.camera,
+      this.controls,
+      cameraPos,
+      lookAtPoint,
       CAMERA_CONFIG.ANIMATION_DURATION_MS
     )
   }

@@ -4,25 +4,30 @@ import { cosineSimilarity, euclideanDistance, dotProduct, magnitude } from './ma
 export function updateInfoPanel(selectedVectors) {
     const panel = document.getElementById('info-panel');
 
+    // Pro Tip alternatives (swap the text below to change):
+    // - "Watch how 'genius' and 'madness' dance together in vector... space!"
+    // - "AI thinks 'coffee' and 'productivity' are closer than 'coffee' and... tea!"
+    // - "Try 'chaos' + 'beauty' - the vectors might just... kiss!"
+    // - "Semantic space proves 'beginning' and 'end' actually... overlap!"
+    // - "Discover why 'artificial' and 'natural' are paradoxically... identical!"
+    // - "Vector math shows 'king' - 'man' + 'woman' equals... queen!"
+    // - "The distance between 'war' and 'peace' is shockingly... tiny!"
+
     if (selectedVectors.length === 0) {
         panel.innerHTML = `
             <div class="info-panel-empty">
-                <div class="empty-icon">
-                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M32 8L32 56M8 32L56 32" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
-                        <circle cx="32" cy="32" r="20" stroke="currentColor" stroke-width="2" opacity="0.4" stroke-dasharray="4 4"/>
-                        <path d="M32 20L38 32L32 44" stroke="var(--accent-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
-                    </svg>
+                <div class="instructions">
+                    <strong>Hover</strong> over vectors to see relationships<br>
+                    <strong>Click</strong> two vectors to compare them<br>
+                    <strong>Drag</strong> to rotate the view<br>
+                    <strong>Select</strong> one vector and press Delete key to remove it<br>
+                    <div class="instruction-hint">**Try adding phrases to see how they cluster</div>
                 </div>
-                <h3 style="color: var(--text-primary); font-size: var(--text-lg); margin-bottom: var(--space-sm); text-transform: none; opacity: 1;">Ready to Compare</h3>
-                <p style="color: var(--text-tertiary); font-size: var(--text-sm); line-height: var(--leading-relaxed); margin-bottom: var(--space-lg);">
-                    Select any vector to see its details, or click <strong style="color: var(--accent-primary);">two vectors</strong> to visualize their similarity.
-                </p>
 
-                <div class="empty-hint">
+                <div class="empty-hint" style="margin-top: var(--space-lg);">
                     <span class="hint-badge">💡 Pro Tip</span>
                     <p style="margin-top: var(--space-xs); color: var(--text-muted); font-size: var(--text-sm); line-height: var(--leading-normal);">
-                        Try comparing opposites like "hot" and "cold" to see how embeddings capture semantic distance!
+                        Embeddings reveal that "love" and "hate" are surprisingly... neighbors!
                     </p>
                 </div>
             </div>

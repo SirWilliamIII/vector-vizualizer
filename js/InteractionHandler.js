@@ -159,6 +159,17 @@ export class InteractionHandler {
       this.cameraController.restoreSavedState()
       this.updateSelection()
     }
+
+    // Handle Delete/Backspace for single vector deletion
+    if ((event.key === 'Delete' || event.key === 'Backspace') && !event.target.matches('input, textarea')) {
+      const selectedVectors = this.state.getSelectedVectors()
+
+      // Only allow deletion when exactly one vector is selected
+      if (selectedVectors.length === 1) {
+        event.preventDefault()
+        this.deleteSelectedVector()
+      }
+    }
   }
 
   // ========================================================================
@@ -530,6 +541,40 @@ export class InteractionHandler {
     await this.vectorManager.recreateAllVisualizations()
 
     // Clear selection and comparison visuals since coordinates changed
+    this.clearSelection()
+    this.cameraController.restoreSavedState()
+  }
+
+  /**
+   * Delete a single selected vector (only works when exactly one vector is selected)
+   */
+  async deleteSelectedVector() {
+    const selectedVectors = this.state.getSelectedVectors()
+
+    // Only proceed if exactly one vector is selected
+    if (selectedVectors.length !== 1) {
+      return
+    }
+
+    const vectorName = selectedVectors[0]
+
+    // Remove the vector
+    this.vectorManager.removeVector(vectorName)
+
+    // Check if we have any vectors left
+    const remainingCount = this.vectorManager.getVectorCount()
+
+    if (remainingCount === 0) {
+      // No vectors left
+      this.clearSelection()
+      updateInfoPanel([])
+      return
+    }
+
+    // Re-project remaining vectors with PCA
+    await this.vectorManager.recreateAllVisualizations()
+
+    // Clear selection since the deleted vector is no longer present
     this.clearSelection()
     this.cameraController.restoreSavedState()
   }

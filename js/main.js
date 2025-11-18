@@ -34,6 +34,7 @@ import { CameraController } from './CameraController.js'
 import { VectorManager } from './VectorManager.js'
 import { InteractionHandler } from './InteractionHandler.js'
 import { LODController } from './LODController.js'
+import { VectorSearch } from './vector-search.js'
 
 import {
   STATUS_CONFIG,
@@ -71,6 +72,9 @@ const lodController = new LODController(
   sceneManager.renderer,
   state
 )
+
+// Initialize search functionality
+const vectorSearch = new VectorSearch(state, cameraController, interactionHandler)
 
 // ========================================================================
 // INITIAL VECTOR SETUP
@@ -421,6 +425,31 @@ window.exportVisual = function () {
     setTimeout(() => clearStatus(), STATUS_CONFIG.ERROR_TIMEOUT_MS)
   }, EXPORT_CONFIG.FORMAT)
 }
+
+window.toggleIdeasPanel = function () {
+  const panel = document.getElementById('ideas-panel')
+  if (panel) {
+    const isVisible = panel.style.display !== 'none'
+    panel.style.display = isVisible ? 'none' : 'flex'
+
+    // Add or remove body class to prevent scrolling when panel is open
+    if (!isVisible) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+  }
+}
+
+// Close ideas panel with Escape key
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const panel = document.getElementById('ideas-panel')
+    if (panel && panel.style.display !== 'none') {
+      toggleIdeasPanel()
+    }
+  }
+})
 
 // ========================================================================
 // MODEL SWITCHING

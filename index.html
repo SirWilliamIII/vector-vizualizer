@@ -23,6 +23,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div id="canvas-container"></div>
         
         <div class="left-column">
+            <!-- Search Box -->
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M11 11L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <input
+                        type="text"
+                        id="vector-search"
+                        placeholder="Search vectors..."
+                        class="vector-search-input"
+                        autocomplete="off"
+                    />
+                    <button id="search-clear" class="search-clear-btn" style="display: none;">×</button>
+                </div>
+                <div id="search-results" class="search-results" style="display: none;"></div>
+            </div>
+
             <div class="legend">
                 <h2>Similarity Colors</h2>
                 <div class="legend-item">
@@ -37,14 +56,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <div class="legend-color" style="background: #f87171;"></div>
                     <div class="legend-text">Low (<0.3) - Different</div>
                 </div>
-            </div>
-            
-            <div class="instructions">
-                <strong>Hover</strong> over vectors to see relationships<br>
-                <strong>Click</strong> two vectors to compare them<br>
-                <strong>Drag</strong> to rotate the view<br>
-                <strong>Select</strong> and click Delete button to remove vectors<br>
-                <div class="instruction-hint">**Try adding phrases to see how they cluster</div>
             </div>
 
         </div>
@@ -157,6 +168,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         </svg>
                         Export
                     </button>
+                    <button class="control-btn-compact" onclick="toggleIdeasPanel()" title="Get word combination ideas">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 1V3M8 13V15M1 8H3M13 8H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M3.5 3.5L4.5 4.5M11.5 11.5L12.5 12.5M12.5 3.5L11.5 4.5M4.5 11.5L3.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        </svg>
+                        Need Ideas?
+                    </button>
                     <a href="/guide.html" class="control-btn-compact" title="Understanding Vector Space Guide" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M7 2H4C3.44772 2 3 2.44772 3 3V13C3 13.5523 3.44772 14 4 14H12C12.5523 14 13 13.5523 13 13V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -175,6 +194,82 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                 <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
                     Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
                 </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ideas Panel -->
+    <div id="ideas-panel" class="ideas-panel" style="display: none;">
+        <div class="ideas-panel-content">
+            <div class="ideas-panel-header">
+                <h3>✨ Try These Mind-Bending Combinations</h3>
+                <button class="ideas-close-btn" onclick="toggleIdeasPanel()">×</button>
+            </div>
+
+            <div class="ideas-grid">
+                <div class="idea-category">
+                    <h4>🤯 Paradoxes</h4>
+                    <ul>
+                        <li><strong>love</strong> + <strong>hate</strong> — surprisingly neighbors!</li>
+                        <li><strong>beginning</strong> + <strong>end</strong> — they actually overlap</li>
+                        <li><strong>artificial</strong> + <strong>natural</strong> — paradoxically close</li>
+                        <li><strong>war</strong> + <strong>peace</strong> — shockingly tiny distance</li>
+                    </ul>
+                </div>
+
+                <div class="idea-category">
+                    <h4>🎭 Poetic Pairs</h4>
+                    <ul>
+                        <li><strong>chaos</strong> + <strong>beauty</strong> — vectors might kiss!</li>
+                        <li><strong>genius</strong> + <strong>madness</strong> — dance together</li>
+                        <li><strong>dream</strong> + <strong>reality</strong> — blurred boundaries</li>
+                        <li><strong>silence</strong> + <strong>music</strong> — unexpected harmony</li>
+                    </ul>
+                </div>
+
+                <div class="idea-category">
+                    <h4>🧠 AI Insights</h4>
+                    <ul>
+                        <li><strong>coffee</strong> + <strong>productivity</strong> — closer than coffee + tea!</li>
+                        <li><strong>algorithm</strong> + <strong>intuition</strong> — surprisingly aligned</li>
+                        <li><strong>data</strong> + <strong>wisdom</strong> — the learning gap</li>
+                        <li><strong>neural</strong> + <strong>network</strong> + <strong>brain</strong> — triangle of thought</li>
+                    </ul>
+                </div>
+
+                <div class="idea-category">
+                    <h4>🎨 Creative Clusters</h4>
+                    <ul>
+                        <li><strong>spark</strong> + <strong>signal</strong> + <strong>pattern recognition</strong></li>
+                        <li><strong>memory leak</strong> + <strong>machine</strong> + <strong>ghost</strong></li>
+                        <li><strong>artificial empathy</strong> + <strong>human error</strong></li>
+                        <li><strong>future nostalgia</strong> + <strong>lost moment</strong></li>
+                    </ul>
+                </div>
+
+                <div class="idea-category">
+                    <h4>🔬 Classic Examples</h4>
+                    <ul>
+                        <li><strong>king</strong> - <strong>man</strong> + <strong>woman</strong> = queen!</li>
+                        <li><strong>paris</strong> - <strong>france</strong> + <strong>italy</strong> = rome</li>
+                        <li><strong>hot</strong> + <strong>cold</strong> — temperature spectrum</li>
+                        <li><strong>good</strong> + <strong>bad</strong> + <strong>ugly</strong> — moral triangle</li>
+                    </ul>
+                </div>
+
+                <div class="idea-category">
+                    <h4>🌈 Wild Cards</h4>
+                    <ul>
+                        <li><strong>quantum</strong> + <strong>consciousness</strong> — edge of understanding</li>
+                        <li><strong>infinity</strong> + <strong>zero</strong> — mathematical romance</li>
+                        <li><strong>time</strong> + <strong>space</strong> + <strong>gravity</strong> — Einstein's playground</li>
+                        <li><strong>yesterday</strong> + <strong>tomorrow</strong> — missing today</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="ideas-footer">
+                <p>💡 <strong>Pro tip:</strong> Add multiple words at once to see how they cluster in semantic space!</p>
             </div>
         </div>
     </div>
