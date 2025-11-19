@@ -122,6 +122,37 @@ export class InteractionHandler {
   onMouseClick(event) {
     this.sceneManager.updatePointerFromEvent(event)
 
+    // In comparison mode, be more aggressive about resetting
+    if (this.state.isComparisonMode()) {
+      const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
+      const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
+
+      // Filter out hitbox intersections - only consider actual visible geometry
+      const validMeshIntersects = meshIntersects.filter(intersect => {
+        return !intersect.object.userData.isHitbox &&
+               intersect.object.userData.name &&
+               this.state.isSelected(intersect.object.userData.name)
+      })
+
+      const validLabelIntersects = labelIntersects.filter(intersect => {
+        return intersect.object.userData.name &&
+               this.state.isSelected(intersect.object.userData.name)
+      })
+
+      // Only stay in comparison mode if clicking directly on a selected vector/label
+      if (validMeshIntersects.length > 0 || validLabelIntersects.length > 0) {
+        // Clicked on a selected vector - do nothing (stay in comparison)
+        return
+      }
+
+      // Any other click resets the view
+      this.state.clearSelection()
+      this.cameraController.restoreSavedState()
+      this.updateSelection()
+      return
+    }
+
+    // Normal mode - original behavior
     const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
     const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
 
@@ -134,9 +165,8 @@ export class InteractionHandler {
       name = labelIntersects[0].object.userData.name
     }
 
-    // Don't use hover state for click detection if we're in comparison mode
-    // This ensures clicking inside the triangle (where there might be a lingering hover) still resets
-    if (!name && this.state.getHoveredVector() && !this.state.isComparisonMode()) {
+    // Use hover state as fallback in normal mode
+    if (!name && this.state.getHoveredVector()) {
       name = this.state.getHoveredVector()
     }
 
@@ -144,14 +174,6 @@ export class InteractionHandler {
       // Clicked on a vector or label
       this.state.selectVector(name)
       this.updateSelection()
-    } else {
-      // Clicked empty space
-      if (this.state.isComparisonMode()) {
-        // If 2 vectors are selected (comparison mode), clicking empty space resets everything
-        this.state.clearSelection()
-        this.cameraController.restoreSavedState()
-        this.updateSelection()
-      }
     }
   }
 
@@ -259,6 +281,37 @@ export class InteractionHandler {
       const meshIntersects = this.sceneManager.getIntersections(this.state.getVectorMeshes())
       const labelIntersects = this.sceneManager.getIntersections(this.state.getLabelSprites())
 
+      // In comparison mode, be more aggressive about resetting
+      if (this.state.isComparisonMode()) {
+        // Filter out hitbox intersections - only consider actual visible geometry
+        const validMeshIntersects = meshIntersects.filter(intersect => {
+          return !intersect.object.userData.isHitbox &&
+                 intersect.object.userData.name &&
+                 this.state.isSelected(intersect.object.userData.name)
+        })
+
+        const validLabelIntersects = labelIntersects.filter(intersect => {
+          return intersect.object.userData.name &&
+                 this.state.isSelected(intersect.object.userData.name)
+        })
+
+        // Only stay in comparison mode if tapping directly on a selected vector/label
+        if (validMeshIntersects.length > 0 || validLabelIntersects.length > 0) {
+          // Tapped on a selected vector - do nothing (stay in comparison)
+          return
+        }
+
+        // Any other tap resets the view
+        event.preventDefault()
+        event.stopPropagation()
+
+        this.state.clearSelection()
+        this.cameraController.restoreSavedState()
+        this.updateSelection()
+        return
+      }
+
+      // Normal mode - original behavior
       let name = null
 
       if (meshIntersects.length > 0) {
@@ -267,9 +320,8 @@ export class InteractionHandler {
         name = labelIntersects[0].object.userData.name
       }
 
-      // Don't use hover state for tap detection if we're in comparison mode
-      // This ensures tapping inside the triangle still resets
-      if (!name && this.state.getHoveredVector() && !this.state.isComparisonMode()) {
+      // Use hover state as fallback in normal mode
+      if (!name && this.state.getHoveredVector()) {
         name = this.state.getHoveredVector()
       }
 
@@ -281,16 +333,6 @@ export class InteractionHandler {
         // Tapped on a vector or label
         this.state.selectVector(name)
         this.updateSelection()
-      } else {
-        // Tapped empty space
-        if (this.state.isComparisonMode()) {
-          event.preventDefault()
-          event.stopPropagation()
-
-          this.state.clearSelection()
-          this.cameraController.restoreSavedState()
-          this.updateSelection()
-        }
       }
     }
   }
