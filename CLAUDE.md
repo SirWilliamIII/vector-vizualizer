@@ -70,6 +70,30 @@ The application is fully responsive with special handling for screens < 1200px:
   - 500ms duration limit for tap detection
   - Touch events bound to canvas element specifically to avoid conflicts with OrbitControls
 
+## Recent Improvements (November 2024)
+
+### Triangle View Enhancements
+- **Fixed click-to-reset behavior:** Any click on the canvas (including inside the triangle) now reliably resets the view when in comparison mode
+  - Filtered out invisible hitbox intersections that were blocking clicks
+  - Comparison mode now only stays active when clicking directly on selected vectors
+  - Applied same fix to touch events for mobile/tablet consistency
+
+- **Improved label sizing and readability:**
+  - Vector labels scaled from 1.2x to 2.2x width and 1.3x height for better visibility
+  - Fixed vertical stretching issue by using asymmetric scaling
+  - Normalized distance and angle annotations to consistent sizes (both now 1.2×0.6)
+  - All comparison labels now use 28px font for uniformity
+
+### Camera and View Improvements
+- **Fixed search zoom distance:** Camera now maintains comfortable distance (2.8x vector length) when focusing on searched vectors
+  - Previously zoomed in too close (1.5x), making context hard to see
+  - Minimum distance increased from 0.7x to 1.2x base minimum
+
+### Code Quality
+- **Removed debug console.log statements:** Cleaned up development debugging output from math-utils.js
+  - Retained appropriate error logging in batch-upload.js and StateManager.js
+  - Console output now clean and professional
+
 ## Architecture Overview
 
 **Refactoring Status:** ✅ Phases 1-2 Complete (Constants Extraction + State Management)
@@ -270,6 +294,12 @@ GTM (GTM-THHLV3R3) is integrated for analytics. Code is present in index.html he
 17. **Camera initial position** - The camera's initial position is set in SceneManager.js and MUST use `CAMERA_CONFIG.DEFAULT_POSITION` from constants.js, not hardcoded values. Default is now 3.0 (closer than original 5.0) for better initial label visibility. The reset button also uses this same position.
 
 18. **Adaptive scaling coordination** - Vector thickness and label size both scale with vector count but in opposite directions. Thickness decreases with more vectors (to reduce clutter) while maintaining minimum visibility. Label sizing also decreases but more gradually to maintain readability. Both systems work together through LODController.
+
+19. **Invisible hitboxes and raycasting** - Vector arrows include invisible hitboxes (4-10x actual size) for easier clicking. These must be filtered out in comparison mode (`userData.isHitbox`) to prevent them from blocking canvas clicks intended to reset the view. The hitboxes are added to the raycasting array but should be ignored for certain interactions.
+
+20. **Comparison mode label scaling** - When scaling labels in comparison mode, use asymmetric scaling to prevent distortion. Vector labels have a different aspect ratio (3:1) than their canvas dimensions, so uniform scaling causes vertical stretching. Use different X and Y scale factors (e.g., 2.2x width, 1.3x height) to maintain proper proportions.
+
+21. **Comparison visual raycast blocking** - All comparison visuals (triangle plate, tip badges, angle arc, distance annotation, connection line) should have `raycast = () => {}` to make them non-raycastable. This prevents them from intercepting clicks meant to reset the view. Mark them with `userData.isComparisonVisual = true` for identification.
 
 ## File Dependencies
 
