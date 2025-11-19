@@ -43,15 +43,12 @@ export function pcaTo3D(embeddings, modelKey = null) {
     if (matrix.length === 0) return null;
 
     if (matrix.length === 1) {
-        console.log('Single vector: placing at [1, 0, 0]');
         return [[3, 0, 0]];
     }
     
     const n = matrix.length;
     const d = matrix[0].length;
-    
-    console.log(`Running PCA: ${n} vectors of ${d} dimensions -> 3D`);
-    
+
     // Step 1: Center the data (subtract mean)
     const means = new Array(d).fill(0);
     for (let i = 0; i < n; i++) {
@@ -109,8 +106,6 @@ export function pcaTo3D(embeddings, modelKey = null) {
     // Use model-specific scaling for better visual distribution
     const currentModelKey = modelKey || getCurrentModel();
     const scale = MODEL_SCALING[currentModelKey] || 5;  // Default to 5 if model not found
-
-    console.log(`Using scale factor ${scale} for model: ${currentModelKey}`);
 
     return projected.map(p => p.map(val => val * scale));
 }
