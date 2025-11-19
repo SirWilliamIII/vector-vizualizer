@@ -516,15 +516,15 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { alpha: true, willReadFrequently: false });
-    const scale = 4;
-    canvas.width = 512 * scale;
+    const scale = 3;
+    canvas.width = 256 * scale;
     canvas.height = 128 * scale;
     context.scale(scale, scale);
-    
-    context.clearRect(0, 0, 512, 128);
+
+    context.clearRect(0, 0, 256, 128);
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = 'high';
-    
+
     const distanceText = distance.toFixed(3);
     const accent = new THREE.Color(color);
     const accentRGB = {
@@ -533,21 +533,21 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
         b: Math.round(accent.b * 255)
     };
 
-    const labelWidth = 320;
-    const labelHeight = 90;
-    const labelX = (512 - labelWidth) / 2;
+    const labelWidth = 180;
+    const labelHeight = 68;
+    const labelX = (256 - labelWidth) / 2;
     const labelY = (128 - labelHeight) / 2;
     
     context.beginPath();
-    context.moveTo(labelX + 28, labelY);
-    context.lineTo(labelX + labelWidth - 28, labelY);
-    context.quadraticCurveTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + 28);
-    context.lineTo(labelX + labelWidth, labelY + labelHeight - 28);
-    context.quadraticCurveTo(labelX + labelWidth, labelY + labelHeight, labelX + labelWidth - 28, labelY + labelHeight);
-    context.lineTo(labelX + 28, labelY + labelHeight);
-    context.quadraticCurveTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - 28);
-    context.lineTo(labelX, labelY + 28);
-    context.quadraticCurveTo(labelX, labelY, labelX + 28, labelY);
+    context.moveTo(labelX + 20, labelY);
+    context.lineTo(labelX + labelWidth - 20, labelY);
+    context.quadraticCurveTo(labelX + labelWidth, labelY, labelX + labelWidth, labelY + 20);
+    context.lineTo(labelX + labelWidth, labelY + labelHeight - 20);
+    context.quadraticCurveTo(labelX + labelWidth, labelY + labelHeight, labelX + labelWidth - 20, labelY + labelHeight);
+    context.lineTo(labelX + 20, labelY + labelHeight);
+    context.quadraticCurveTo(labelX, labelY + labelHeight, labelX, labelY + labelHeight - 20);
+    context.lineTo(labelX, labelY + 20);
+    context.quadraticCurveTo(labelX, labelY, labelX + 20, labelY);
     context.closePath();
     context.fillStyle = `rgba(${accentRGB.r}, ${accentRGB.g}, ${accentRGB.b}, 0.16)`;
     context.strokeStyle = `rgba(${accentRGB.r}, ${accentRGB.g}, ${accentRGB.b}, 0.45)`;
@@ -555,11 +555,11 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     context.fill();
     context.stroke();
     
-    context.font = '600 48px -apple-system, BlinkMacSystemFont, sans-serif';  // Reduced from 64px
+    context.font = '600 28px -apple-system, sans-serif';  // Matching angle label font size
     context.fillStyle = '#f8fafc';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillText(distanceText, 256, 64);
+    context.fillText(distanceText, 128, 64);
     
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
