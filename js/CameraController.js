@@ -124,9 +124,9 @@ export class CameraController {
     }
     perpendicular.normalize()
 
-    // Calculate camera position: zoom in closer to the vector
-    // Reduced distance multiplier from 2.5 to 1.5 for closer zoom
-    const cameraDistance = Math.max(vectorLength * 1.5, FOCUS_CONFIG.MIN_CAMERA_DISTANCE * 0.7)
+    // Calculate camera position: maintain comfortable viewing distance
+    // Increased distance multiplier to 2.8 to avoid zooming too close
+    const cameraDistance = Math.max(vectorLength * 2.8, FOCUS_CONFIG.MIN_CAMERA_DISTANCE * 1.2)
 
     // Position camera looking at the vector from a good angle
     const cameraPos = vec.clone()
