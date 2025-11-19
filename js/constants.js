@@ -259,7 +259,7 @@ export const LABEL_CONFIG = {
     // Label scales for different states (adjusted for base scale 1.8 x 0.6)
     SCALE_NORMAL: { x: 1.0, y: 1.0, z: 1 },        // Use base scale as-is
     SCALE_SELECTED: { x: 1.15, y: 1.15, z: 1 },    // 15% larger when selected
-    SCALE_COMPARISON: { x: 0.8, y: 0.8, z: 1 },    // 20% smaller in comparison mode
+    SCALE_COMPARISON: { x: 1.2, y: 1.2, z: 1 },    // 20% larger in comparison mode for better visibility
     SCALE_FADED: { x: 0.8, y: 0.8, z: 1 },         // 20% smaller when faded
 
     // Label opacity for different states

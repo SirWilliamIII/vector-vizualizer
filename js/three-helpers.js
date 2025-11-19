@@ -318,6 +318,10 @@ export function createConnectionLine(start, end, color) {
     group.userData.isAnimated = true;
     group.userData.animatedMaterial = coreMaterial;
 
+    // Make connection line non-raycastable so clicks pass through
+    group.raycast = () => {};
+    group.userData.isComparisonVisual = true;
+
     return group;
 }
 
@@ -495,7 +499,11 @@ export function createAngleArc(start, end, color, angleDegrees) {
     });
     const leaderLine = new THREE.Line(leaderGeometry, leaderMaterial);
     group.add(leaderLine);
-    
+
+    // Make angle arc non-raycastable so clicks pass through
+    group.raycast = () => {};
+    group.userData.isComparisonVisual = true;
+
     return group;
 }
 
@@ -575,9 +583,9 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
         perpendicular.crossVectors(direction, new THREE.Vector3(1, 0, 0)).normalize();
     }
     
-    const offset = perpendicular.multiplyScalar(2.2);
+    const offset = perpendicular.multiplyScalar(2.0);  // Adjusted for smaller label
     sprite.position.copy(midpoint).add(offset);
-    sprite.scale.set(1.6, 0.8, 1);  // Reduced from 2.2, 1.1 for better visibility
+    sprite.scale.set(1.2, 0.6, 1);  // Matching angle label size for consistency
     sprite.renderOrder = 999;
     sprite.userData.depthResponsive = true;
     sprite.userData.baseScale = sprite.scale.clone();
@@ -596,7 +604,11 @@ export function createDistanceAnnotation(start, end, distance, type = 'euclidean
     ]);
     const connectorLine = new THREE.Line(connectorGeometry, connectorMaterial);
     group.add(connectorLine);
-    
+
+    // Make distance annotation non-raycastable so clicks pass through
+    group.raycast = () => {};
+    group.userData.isComparisonVisual = true;
+
     return group;
 }
 
@@ -624,7 +636,11 @@ export function createComparisonPlate(start, end) {
     plate.scale.set(maxLen * 1.4, maxLen * 1.1, 1);
     plate.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
     plate.renderOrder = -5;
-    
+
+    // Make plate non-raycastable so clicks pass through
+    plate.raycast = () => {};
+    plate.userData.isComparisonVisual = true;
+
     return plate;
 }
 
@@ -653,6 +669,10 @@ export function createTipBadge(position, color) {
     
     group.position.set(position[0], position[1], position[2]);
     group.renderOrder = 999;
-    
+
+    // Make badge non-raycastable so clicks pass through
+    group.raycast = () => {};
+    group.userData.isComparisonVisual = true;
+
     return group;
 }

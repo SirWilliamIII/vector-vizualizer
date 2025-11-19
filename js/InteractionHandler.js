@@ -134,7 +134,9 @@ export class InteractionHandler {
       name = labelIntersects[0].object.userData.name
     }
 
-    if (!name && this.state.getHoveredVector()) {
+    // Don't use hover state for click detection if we're in comparison mode
+    // This ensures clicking inside the triangle (where there might be a lingering hover) still resets
+    if (!name && this.state.getHoveredVector() && !this.state.isComparisonMode()) {
       name = this.state.getHoveredVector()
     }
 
@@ -263,6 +265,12 @@ export class InteractionHandler {
         name = meshIntersects[0].object.userData.name
       } else if (labelIntersects.length > 0) {
         name = labelIntersects[0].object.userData.name
+      }
+
+      // Don't use hover state for tap detection if we're in comparison mode
+      // This ensures tapping inside the triangle still resets
+      if (!name && this.state.getHoveredVector() && !this.state.isComparisonMode()) {
+        name = this.state.getHoveredVector()
       }
 
       if (name) {
