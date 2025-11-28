@@ -26,6 +26,205 @@ import {
   VECTOR_CONFIG
 } from './constants.js'
 
+/**
+ * LODController
+ *
+ * Level-of-Detail (LOD) manager for a 3D vector visualization. Controls visibility,
+ * prominence, and presentation of vector objects and their labels based on camera
+ * position, selection state, semantic similarity, screen proximity, and scene density.
+ *
+ * Responsibilities:
+ * - Compute multi-factor importance scores per vector (selection, hover, distance,
+ *   screen-center proximity, semantic similarity, view angle).
+ * - Adapt visual characteristics (thickness, cone/shaft/ring scales, opacity) based
+ *   on importance and global adaptive configuration.
+ * - Adapt label scale based on scene density and per-vector importance/selection state.
+ * - Perform simple screen-space label collision detection and limit visible labels.
+ * - Expose controls to enable/disable LOD, adjust debounce and max label counts,
+ *   and request/force updates.
+ *
+ * Notes:
+ * - This controller relies on several global or externally-provided configuration
+ *   objects and helpers (examples: LOD_CONFIG, VECTOR_CONFIG, LOD_IMPORTANCE_WEIGHTS,
+ *   LOD_VISUAL_SCALES, LOD_THRESHOLDS, vectors, cosineSimilarity, THREE).
+ * - Many behaviors assume label sprites store userData fields (name, baseScale, baseOpacity, etc.).
+ *
+ * @class
+ *
+ * @param {THREE.Camera} camera - Active camera used to compute projections and directions.
+ * @param {THREE.Renderer} renderer - Renderer instance (used for potential future extensions).
+ * @param {Object} stateManager - State manager exposing scene/vector accessors:
+ *   - getAllVectorNames(): string[]
+ *   - getVectorObject(name: string): THREE.Object3D | undefined
+ *   - getLabelSprite(name: string): THREE.Sprite | undefined
+ *   - getSelectedVectors(): string[]
+ *   - getHoveredVector(): string | null
+ *   - isComparisonMode(): boolean
+ *   - isSelected(name: string): boolean
+ *
+ * Public properties (initialized in constructor):
+ * @property {boolean} enabled - Whether LOD processing is active.
+ * @property {number} maxLabels - Maximum number of labels allowed to be visible simultaneously.
+ * @property {number} updateDebounceMs - Debounce interval for update requests (ms).
+ * @property {number} lastUpdateTime - Timestamp of last LOD update (ms since epoch).
+ * @property {number|null} updateTimeout - ID of pending debounce timeout (if any).
+ * @property {Map<string, {x:number,y:number,z:number}>} screenPositionCache - Optional cache for computed screen positions.
+ *
+ * Public methods:
+ *
+ * @method calculateGlobalThicknessMultiplier
+ * @description
+ *   Compute a global thickness multiplier for vector geometry based on the current
+ *   number of vectors and the VECTOR_CONFIG.ADAPTIVE_THICKNESS configuration.
+ *   The returned multiplier is bounded between configured MIN_SCALE and MAX_SCALE.
+ * @returns {number} Thickness multiplier (e.g. 0.4 - 1.0)
+ *
+ * @method calculateAdaptiveLabelScale
+ * @description
+ *   Compute an adaptive label scale multiplier based on the current number of vectors
+ *   and VECTOR_CONFIG.ADAPTIVE_LABEL_SIZE configuration. Used to shrink/expand label sizing
+ *   as scene density changes.
+ * @returns {number} Label scale multiplier (e.g. 0.7 - 1.4)
+ *
+ * @method calculateImportance
+ * @description
+ *   Calculate an importance score in range [0,100] for a named vector. Factors:
+ *     1. Selection & hover: selected vectors and hovered vector receive highest priority.
+ *     2. Camera distance: closer vectors score higher.
+ *     3. Screen-center proximity: vectors near center score higher.
+ *     4. Semantic similarity: when selected vectors exist, vectors similar to any selected
+ *        vector are boosted by cosine similarity.
+ *     5. View angle: vectors oriented toward/away from the camera are favored.
+ *
+ *   The method expects the vector dataset to be available (vectors[vectorName].coords).
+ *
+ * @param {string} vectorName - Name/key of the vector to score.
+ * @param {THREE.Vector3} cameraPos - Camera world position used for distance computation.
+ * @param {Array<string>} selectedVectors - List of currently selected vector names.
+ * @returns {number} Importance score (0 - 100)
+ *
+ * @method updateAllVisibility
+ * @description
+ *   Perform a full LOD pass across all vectors:
+ *   - If LOD is disabled, resets all vectors to full visibility.
+ *   - If "comparison mode" is active (typically 2 selected vectors), only shows selected labels.
+ *   - Otherwise computes importance for each vector, applies LOD visual updates,
+ *     and runs label collision resolution to choose up to maxLabels to display.
+ *
+ *   Intended to be invoked either directly (forceUpdate) or via requestUpdate (debounced).
+ * @returns {void}
+ *
+ * @method applyLOD
+ * @description
+ *   Apply visual changes for a single vector and its label according to a computed importance.
+ *   Responsibilities:
+ *   - Determine a visual tier (high/medium/low/minimal) using LOD_THRESHOLDS.
+ *   - Blend global adaptive thickness and importance-based thickness to compute final thickness.
+ *   - Smoothly lerp geometry scales for CylinderGeometry (shafts), ConeGeometry (tips), and
+ *     RingGeometry (glows).
+ *   - Adjust arrow child material opacities (unless in comparison mode).
+ *   - Compute and apply label scale and opacity, storing LOD-controlled values in label.userData.
+ *   - Apply smooth transitions using a configurable lerp factor.
+ *
+ * @param {THREE.Group|THREE.Object3D} vectorGroup - Group containing vector geometry children.
+ * @param {THREE.Sprite} labelSprite - Sprite used to render the vector's label.
+ * @param {number} importance - Importance score (0 - 100).
+ * @returns {void}
+ *
+ * @method handleLabelCollisions
+ * @description
+ *   Screen-space label placement routine:
+ *   - Sorts labels by importance (descending).
+ *   - Projects label positions to screen space and estimates bounding rectangles using
+ *     getLabelBounds.
+ *   - Keeps the highest-priority labels that do not overlap previously chosen labels,
+ *     up to maxLabels.
+ *   - Hides labels that are behind the camera, outside the view frustum, collide, or
+ *     exceed the max count.
+ *
+ * @param {Map<string, number>} importanceMap - Map of vector name to importance score.
+ * @returns {void}
+ *
+ * @method getScreenPosition
+ * @description
+ *   Project a 3D world position into screen space using the managed camera.
+ *   Returns null for points behind the camera or outside clip volume.
+ *
+ * @param {THREE.Vector3} position - World-space 3D position.
+ * @returns {{x:number,y:number,z:number}|null} Screen coordinates in pixels and normalized depth z, or null.
+ *
+ * @method getLabelBounds
+ * @description
+ *   Estimate a label's axis-aligned bounding rectangle in screen space for collision testing.
+ *   This uses label.userData.name, label.scale, approximate character metrics, and a
+ *   configurable collision padding.
+ *
+ * @param {THREE.Sprite} label - Label sprite whose bounds to estimate.
+ * @param {{x:number,y:number}} screenPos - Screen-space center position of the label.
+ * @returns {{x:number,y:number,width:number,height:number}} Rectangle with top-left x,y and width/height in pixels.
+ *
+ * @method rectsOverlap
+ * @description
+ *   Simple AABB overlap test for two rectangles.
+ *
+ * @param {{x:number,y:number,width:number,height:number}} rect1
+ * @param {{x:number,y:number,width:number,height:number}} rect2
+ * @returns {boolean} True if rectangles overlap.
+ *
+ * @method resetAllVisibility
+ * @description
+ *   Restore all vectors and labels to full visibility and default scales (undo LOD effects).
+ *   Respects selection/comparison state in how labels are restored.
+ *
+ * @returns {void}
+ *
+ * @method requestUpdate
+ * @description
+ *   Debounced request to recompute LOD. Multiple calls within updateDebounceMs will collapse
+ *   into a single invocation of updateAllVisibility.
+ *
+ * @returns {void}
+ *
+ * @method forceUpdate
+ * @description
+ *   Immediately run updateAllVisibility, cancelling any pending debounced call.
+ *
+ * @returns {void}
+ *
+ * @method setEnabled
+ * @description
+ *   Enable or disable LOD processing. When enabling, forces an immediate update; when
+ *   disabling, resets all visibility to full.
+ *
+ * @param {boolean} enabled - New enabled state.
+ * @returns {void}
+ *
+ * @method setMaxLabels
+ * @description
+ *   Set the upper bound on simultaneously visible labels (clamped to a sensible range).
+ *   Triggers an immediate update when LOD is enabled.
+ *
+ * @param {number} count - Desired maximum labels (will be clamped, e.g. 1..50).
+ * @returns {void}
+ *
+ * @method isEnabled
+ * @description
+ *   Query whether LOD is currently active.
+ *
+ * @returns {boolean}
+ *
+ * @method getMaxLabels
+ * @description
+ *   Get the current maximum labels setting.
+ *
+ * @returns {number}
+ *
+ * Example usage:
+ *   const lod = new LODController(camera, renderer, stateManager)
+ *   lod.setMaxLabels(10)
+ *   lod.requestUpdate() // debounced
+ *
+ */
 export class LODController {
   constructor(camera, renderer, stateManager) {
     this.camera = camera
@@ -192,6 +391,12 @@ export class LODController {
       return // Skip normal LOD processing in comparison mode
     }
 
+    // SPECIAL MODE: Single vector selected - show semantically relevant labels
+    if (selectedVectors.length === 1) {
+      this.handleSingleVectorSelection(selectedVectors[0])
+      return
+    }
+
     // Calculate importance for all vectors
     const importanceMap = new Map()
     const vectorNames = this.state.getAllVectorNames()
@@ -214,6 +419,77 @@ export class LODController {
 
     // Handle label collision detection
     this.handleLabelCollisions(importanceMap)
+  }
+
+  /**
+   * Handle label visibility when exactly 1 vector is selected
+   * Shows labels that tell the "story" of the selected vector:
+   * - Top 5 most similar vectors
+   * - 2-3 opposite (least similar) vectors
+   * - 2-3 non-trivial (mid-range similarity) vectors
+   * @param {string} selectedVector - The selected vector name
+   */
+  handleSingleVectorSelection(selectedVector) {
+    const selectedData = vectors[selectedVector]
+    if (!selectedData || !selectedData.coords) {
+      // Fallback to normal mode if selected vector has no data
+      const vectorNames = this.state.getAllVectorNames()
+      vectorNames.forEach(name => {
+        const label = this.state.getLabelSprite(name)
+        if (label) label.visible = true
+      })
+      return
+    }
+
+    const vectorNames = this.state.getAllVectorNames()
+    const similarities = []
+
+    // Calculate similarity to all other vectors
+    vectorNames.forEach(name => {
+      if (name === selectedVector) return // Skip self
+
+      const vectorData = vectors[name]
+      if (!vectorData || !vectorData.coords) return
+
+      const similarity = cosineSimilarity(selectedData.coords, vectorData.coords)
+      similarities.push({ name, similarity })
+    })
+
+    // Sort by similarity (descending: most similar first)
+    similarities.sort((a, b) => b.similarity - a.similarity)
+
+    // Select labels to show
+    const labelsToShow = new Set([selectedVector]) // Always show selected
+
+    // Top 5 most similar
+    const topSimilar = similarities.slice(0, 5)
+    topSimilar.forEach(item => labelsToShow.add(item.name))
+
+    // Bottom 2-3 opposite (least similar)
+    const oppositeCount = Math.min(3, Math.max(2, Math.floor(similarities.length * 0.05)))
+    const opposite = similarities.slice(-oppositeCount)
+    opposite.forEach(item => labelsToShow.add(item.name))
+
+    // 2-3 non-trivial (mid-range)
+    // Define mid-range as the middle third of the sorted array
+    const midStart = Math.floor(similarities.length / 3)
+    const midEnd = Math.floor(2 * similarities.length / 3)
+    const midRange = similarities.slice(midStart, midEnd)
+
+    // Pick 2-3 from mid-range, evenly spaced
+    const nonTrivialCount = Math.min(3, Math.max(2, midRange.length))
+    const step = Math.max(1, Math.floor(midRange.length / nonTrivialCount))
+    for (let i = 0; i < nonTrivialCount && i * step < midRange.length; i++) {
+      labelsToShow.add(midRange[i * step].name)
+    }
+
+    // Apply visibility
+    vectorNames.forEach(name => {
+      const label = this.state.getLabelSprite(name)
+      if (label) {
+        label.visible = labelsToShow.has(name)
+      }
+    })
   }
 
   /**

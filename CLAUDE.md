@@ -53,7 +53,7 @@ For Docker-based deployment, see [DOCKER.md](DOCKER.md). The application can be 
 These are one-time utilities used to create the initial vector data files, not part of the runtime application.
 
 **Educational Resources:**
-- **guide.html** - Educational companion page explaining vector spaces, embeddings, and dimensionality reduction (accessible at `/guide.html`)
+- **no-magic-required.html** - Educational companion page explaining vector spaces, embeddings, and dimensionality reduction (accessible at `/no-magic-required.html`)
 
 ## Testing
 
