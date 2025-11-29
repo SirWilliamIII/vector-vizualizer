@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>What is this all about?</title>
+    <style>
+      body {
+        background: #0d0d0f;
+        color: #ddd;
+        font-family: Inter, system-ui, sans-serif;
+        max-width: 750px;
+        margin: 50px auto;
+        line-height: 1.6;
+        padding: 0 20px;
+      }
+      h1 {
+        color: #fff;
+        font-size: 2.2rem;
+        margin-bottom: 1rem;
+      }
+      h2 {
+        color: #fff;
+        margin-top: 2.2rem;
+      }
+      .box {
+        background: #16161a;
+        padding: 1rem 1.2rem;
+        border-radius: 10px;
+        margin: 1.5rem 0;
+        border-left: 4px solid #4ea4ff;
+      }
+      a {
+        color: #4ea4ff;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .insult {
+        opacity: 0.75;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <a href="/" class="back-link" style="margin-top: var(--space-sm)">
+        <path
+          d="M10 12L6 8L10 4"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Back to Explorer
+    </a>
+    <h1>So… What the Hell Is This?</h1>
+
+    <p>Hello, you've made it here which statistically means two things:</p>
+
+    <div class="box insult">
+      1) You’re curious<br />
+      2) You wanna fill the gaps in your understanding.
+    </div>
+
+    <p>
+      Embeddings, vectors, semantic space — it
+      <em>sounds</em> smart but honestly it's just numbers doing vibes. This page is the
+      "Make you sound smart at the dinner table” version. It's an easy read, promise.
+    </p>
+
+    <h2>Embeddings (aka: words turned into coordinates)</h2>
+
+    <p>
+      Every word you add — “love,” “dog,” “existentialism,” whatever — gets turned into
+      a giant list of numbers. Hundreds of numbers, not two or three. That list is a
+      <strong>vector</strong>. **Same concept applies with phrases. Whether it's a
+      single word or a chapter from a book,
+    </p>
+
+    <div class="box">“Why does the direction of the vector matter? Does it?”</div>
+
+    <p>
+      Answer → if both pointing in same direction: similar. if pointing opposite
+      directions → antonyms. That’s it. You now understand embeddings better than 90% of
+      LinkedIn.
+    </p>
+
+    <p>Where it gets fun is with <strong>phrases</strong>. Try adding these:</p>
+
+    <div class="box">
+      <strong>blue</strong><br />
+      <strong>the sky is blue</strong><br />
+      <strong>the sky is blue but feels heavy today</strong>
+    </div>
+
+    <p>
+      Same “blue”, three totally different vibes. The model has way more context to work
+      with, so those phrases land in different spots. Embeddings don’t store dictionary
+      definitions — they store relationships and patterns like:
+    </p>
+
+    <ul>
+      <li>What tends to show up together</li>
+      <li>In what kind of sentence or situation</li>
+      <li>With what emotional or semantic “flavor”</li>
+    </ul>
+
+    <p>
+      A single word is a Lego brick. A whole sentence is a half-built spaceship with
+      feelings. The coordinates are the model’s best guess at “where that belongs” in
+      meaning space.
+    </p>
+
+    <h2>Why 3D?</h2>
+
+    <p>
+      Under the hood, these vectors live in something like
+      <strong>768 dimensions</strong>. Your phone, laptop, brain, eyeballs — none of
+      that can see 768D. If you think you can, I can’t fix that in one web page.
+    </p>
+
+    <p>
+      Your brain sees everything as 3D. Even a flat line on a screen gets turned into a
+      3D “scene” in your head. So this app cheats: it squishes the big 768D space down
+      into 3D while trying to keep the important directions intact.
+    </p>
+
+    <p>
+      That squishing is called <strong>dimensionality reduction</strong>. Here it’s done
+      with PCA (Principal Component Analysis), which is a fancy way of saying:
+    </p>
+
+    <div class="box">
+      “You gave me 768 numbers per point. I’ll compress that down to 3 numbers per point
+      and try hard not to ruin the overall shape.”
+    </div>
+
+    <p>
+      It’s a <strong>projection</strong>, not a perfect map. Like flattening the Earth —
+      Greenland isn’t actually that big, calm down — but the continents are still in the
+      right rough places.
+    </p>
+
+    <p>
+      So no, this isn’t the “true” 768D universe. But it’s a surprisingly honest sketch
+      of how the model thinks things cluster together.
+    </p>
+
+    <h2>Why Do the Dots Move When You Switch Models?</h2>
+
+    <p>Because every embedding model is basically:</p>
+
+    <div class="box">
+      “Here is how I personally think the universe of words should be arranged.”
+    </div>
+
+    <p>
+      Switch models → all your text gets re-embedded with a different brain → the whole
+      layout shifts. Not wrong, not right — just a different definition of “similar.”
+    </p>
+
+    <p>
+      Same words, same phrases, new geometry. That’s the point. Meaning is not a single
+      fixed map; it’s more like three cartographers arguing over where to put the weird
+      little island labeled “vibes.”
+    </p>
+
+    <h2>“Is This AI?”</h2>
+
+    <p><strong>No.</strong></p>
+
+    <p>
+      Not in the “chat with me / write my essay / hallucinate a TED talk” sense. This
+      app doesn’t generate text, feelings, predictions, or hot takes. It just visualizes
+      the <strong>geometry</strong> of meaning that some other models already produced.
+    </p>
+
+    <p>Under the hood, this thing is:</p>
+
+    <ul>
+      <li>Vanilla JavaScript</li>
+      <li>Three.js for the 3D scene</li>
+      <li>Some linear algebra and PCA</li>
+      <li>A bunch of DOM updates and event handlers</li>
+    </ul>
+
+    <p>
+      This app is more like a calculator with nice lighting, a semantic correlation
+      engine. It is not thinking. No matter how much smarter it is than you.
+    </p>
+
+    <p>
+      It’s like giving a tourist a drone so they stop shouting, “WHERE IS THE BEACH??”
+      and can just look.
+    </p>
+
+    <h2>What This App Actually Communicates</h2>
+
+    <p>
+      The dots don’t move randomly. You’re watching the shape of meaning — the way
+      language groups, clusters, drifts apart, and occasionally contradicts itself.
+    </p>
+    <p>Change the model and see how biases are baked into the training itself.</p>
+
+    <div class="box">
+      <strong>This app shows the “flux” of a model.</strong><br />
+      You change inputs → the geometry reacts → you notice what shifted → you learn
+      something.
+    </div>
+
+    <p>
+      Once you’ve seen it a few times, it’s hard to unsee. You’ll start recognizing when
+      people are actually talking about this kind of geometry — and when they’re just
+      saying “embeddings” because it sounds spicy on a slide.
+    </p>
+
+    <h2>Want to Try Something Cool?</h2>
+
+    <div class="box">
+      Add:<br />
+      <strong>king</strong><br />
+      <strong>man</strong><br />
+      <strong>woman</strong><br />
+      <strong>queen</strong>
+    </div>
+
+    <p>Then rotate the 3D view and tell me magic isn’t real.</p>
+
+    <h2>The Vibe</h2>
+
+    <p>
+      On that wonderful, cursed November day when ChatGPT broke the internet, I was all
+      in. “How did it just write a song about this picture?” was the only question that
+      mattered for a while.
+    </p>
+
+    <p>Then I went digging and got buried under:</p>
+
+    <ul>
+      <li>“1 trillion parameters”</li>
+      <li>“token quantization”</li>
+      <li>“768-dimensional latent space”</li>
+      <li>“multi-head attention over subword units”</li>
+    </ul>
+
+    <p>
+      Half of it was real math. Half of it felt like cosplay for sounding smarter than
+      everyone else.
+    </p>
+
+    <p>
+      This app came from wanting the opposite: a way to
+      <strong>see</strong> what’s going on without pretending it’s mystical. No hype, no
+      “disruption,” just:
+    </p>
+
+    <div class="box">
+      “Here. This is how your text gets turned into points. This is how those points
+      move. Play with it until it stops feeling like magic and starts feeling like
+      geometry.”
+    </div>
+
+    <p>
+      This app isn’t selling anything, convincing you of anything, or pretending to be
+      deeper than it is. It’s a toy — but if you’re curious or confused, it will quietly
+      give you a BS detector for the next time someone says
+      <em>“AI lives in a 768-dimensional latent hyperspace of emergent reasoning”</em>
+      with a straight face.
+    </p>
+
+    <p class="insult">
+      If that still doesn’t impress you… I can’t help you, my friend. But at least now,
+      when someone lies about vectors, you’ll itch a little.
+    </p>
+  </body>
+</html>
