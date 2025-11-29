@@ -144,3 +144,55 @@ export function clearStatus() {
         statusDiv.textContent = '';
     }
 }
+
+export function updateSearchContainerForComparison(isComparisonMode, selectedVectors = []) {
+    const searchContainer = document.querySelector('.search-container');
+    const legend = document.querySelector('.legend');
+
+    if (!searchContainer || !legend) return;
+
+    if (isComparisonMode && selectedVectors.length === 2) {
+        const [name1, name2] = selectedVectors;
+        const v1 = vectors[name1];
+        const v2 = vectors[name2];
+
+        const cosine = cosineSimilarity(v1.coords, v2.coords);
+        const euclidean = euclideanDistance(v1.coords, v2.coords);
+
+        // Determine similarity interpretation and color class (matching info panel logic)
+        const cosineClass = cosine > 0.7 ? 'high-similarity' : cosine > 0.3 ? 'medium-similarity' : 'low-similarity';
+        const euclideanClass = euclidean < 1.0 ? 'high-similarity' : euclidean < 2.0 ? 'medium-similarity' : 'low-similarity';
+
+        let cosineMeaning = '';
+        if (cosine > 0.7) {
+            cosineMeaning = 'very similar';
+        } else if (cosine > 0.3) {
+            cosineMeaning = 'somewhat related';
+        } else {
+            cosineMeaning = 'quite different';
+        }
+
+        const euclideanMeaning = euclidean < 2 ? 'close' : euclidean < 4 ? 'moderate' : 'far apart';
+
+        // Get vector colors
+        const color1 = `#${v1.color.toString(16).padStart(6, '0')}`;
+        const color2 = `#${v2.color.toString(16).padStart(6, '0')}`;
+
+        searchContainer.innerHTML = `
+            <div class="comparison-label">COMPARISON</div>
+            <div class="comparison-header">
+                <strong style="color: ${color1};">${name1}</strong> <span style="color: var(--text-muted);">↔</span> <strong style="color: ${color2};">${name2}</strong>
+            </div>
+            <div class="comparison-metrics">
+                <p><strong class="${cosineClass}">${cosine.toFixed(2)}</strong> cosine → <span class="${cosineClass}">${cosineMeaning}</span></p>
+                <p><strong class="${euclideanClass}">${euclidean.toFixed(2)}</strong> distance → <span class="${euclideanClass}">${euclideanMeaning}</span></p>
+            </div>
+        `;
+        searchContainer.classList.add('comparison-summary');
+        legend.classList.add('legend-prominent');
+    } else {
+        if (searchContainer.classList.contains('comparison-summary')) {
+            location.reload(); // Simple reload to restore everything properly
+        }
+    }
+}

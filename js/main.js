@@ -21,7 +21,7 @@ import * as THREE from 'three'
 import { vectors, originalEmbeddings } from './vector-data.js'
 import { pcaTo3D } from './math-utils.js'
 import { mapRange, clamp } from './math-utils.js'
-import { showStatus, clearStatus, updateInfoPanel } from './ui.js'
+import { showStatus, clearStatus, updateInfoPanel, updateSearchContainerForComparison } from './ui.js'
 import { OnboardingTour, injectOnboardingStyles } from './onboarding.js'
 import { initMobileTooltips, pulseHelpIcons, injectMobileTooltipStyles } from './tooltip-mobile.js'
 import { handleBatchUpload as batchUploadHandler } from './batch-upload.js'
@@ -103,9 +103,12 @@ sceneManager.controls.addEventListener('change', () => {
   lodController.requestUpdate()
 })
 
-// Update LOD on selection changes
+// Update LOD on selection changes and manage search/legend UI
 state.on('selectionChanged', () => {
   lodController.forceUpdate()
+
+  // Update search container and legend based on comparison mode
+  updateSearchContainerForComparison(state.isComparisonMode(), state.getSelectedVectors())
 })
 
 // ========================================================================
