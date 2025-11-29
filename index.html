@@ -1,294 +1,583 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-THHLV3R3');</script>
-<!-- End Google Tag Manager -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+      ;(function (w, d, s, l, i) {
+        w[l] = w[l] || []
+        w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' })
+        var f = d.getElementsByTagName(s)[0],
+          j = d.createElement(s),
+          dl = l != 'dataLayer' ? '&l=' + l : ''
+        j.async = true
+        j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl
+        f.parentNode.insertBefore(j, f)
+      })(window, document, 'script', 'dataLayer', 'GTM-THHLV3R3')
+    </script>
+    <!-- End Google Tag Manager -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vector Space</title>
-    <link rel="stylesheet" href="css/variables.css">
-    <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
     <!-- Google Tag Manager (noscript) -->
-<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-THHLV3R3"
-height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-<!-- End Google Tag Manager (noscript) -->
+    <noscript
+      ><iframe
+        src="https://www.googletagmanager.com/ns.html?id=GTM-THHLV3R3"
+        height="0"
+        width="0"
+        style="display: none; visibility: hidden"
+      ></iframe
+    ></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="container">
-        <div id="canvas-container"></div>
-        
-        <div class="left-column">
-            <!-- Search Box -->
-            <div class="search-container">
-                <div class="search-input-wrapper">
-                    <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.5"/>
-                        <path d="M11 11L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                    <input
-                        type="text"
-                        id="vector-search"
-                        placeholder="Search vectors..."
-                        class="vector-search-input"
-                        autocomplete="off"
-                    />
-                    <button id="search-clear" class="search-clear-btn" style="display: none;">×</button>
-                </div>
-                <div id="search-results" class="search-results" style="display: none;"></div>
-            </div>
+      <div id="canvas-container"></div>
 
-            <div class="legend">
-                <h2>Similarity Colors</h2>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #4ade80;"></div>
-                    <div class="legend-text">High (>0.7) - Very Similar</div>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #fbbf24;"></div>
-                    <div class="legend-text">Medium (0.3-0.7) - Somewhat Similar</div>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #f87171;"></div>
-                    <div class="legend-text">Low (<0.3) - Different</div>
-                </div>
-            </div>
-
+      <div class="left-column">
+        <!-- Search Box -->
+        <div class="search-container">
+          <div class="search-input-wrapper">
+            <svg
+              class="search-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <circle
+                cx="6.5"
+                cy="6.5"
+                r="5.5"
+                stroke="currentColor"
+                stroke-width="1.5"
+              />
+              <path
+                d="M11 11L14 14"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+            <input
+              type="text"
+              id="vector-search"
+              placeholder="Search vectors..."
+              class="vector-search-input"
+              autocomplete="off"
+            />
+            <button id="search-clear" class="search-clear-btn" style="display: none">
+              ×
+            </button>
+          </div>
+          <div id="search-results" class="search-results" style="display: none"></div>
         </div>
 
-        <div class="top-row">
-            <!-- Left: Add Vector -->
-            <div class="navbar-section navbar-left">
-                <div class="add-vector-compact">
-                    <input
-                        type="text"
-                        id="word-input"
-                        placeholder="Add word or phrase..."
-                        class="word-input-compact"
-                    />
-                    <button class="add-btn-compact" onclick="addCustomVector()">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        Add
-                    </button>
-                    <input
-                        type="file"
-                        id="batch-file-input"
-                        accept=".txt"
-                        style="display: none;"
-                        onchange="handleBatchUpload(event)"
-                    />
-                    <button class="batch-btn-compact" onclick="document.getElementById('batch-file-input').click()">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 2V10M8 2L5 5M8 2L11 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M2 10V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        Batch
-                    </button>
-                    <span class="help-icon" data-tooltip="add-vector">
-                        <span class="help-icon-text">?</span>
-                        <span class="help-tooltip">
-                            <strong class="tooltip-heading">Need Inspiration?</strong>
-                            <p>Try these word combinations to explore semantic relationships:</p>
-                            <ul class="tooltip-list">
-                                <li>spark • signal • pattern recognition</li>
-                                <li>neural memory • human error</li>
-                                <li>artificial empathy • ghost</li>
-                                <li>memory leak • machine</li>
-                                <li>lost moment • future nostalgia</li>
-                            </ul>
-                            <p style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(74, 222, 128, 0.3);">
-                                <strong>Batch Upload:</strong> Upload a .txt file with entries separated by blank lines (max 50 items)
-                            </p>
-                        </span>
-                    </span>
-                </div>
-                <div id="status-message" class="status-message"></div>
-            </div>
-
-            <!-- Center: Model Selector -->
-            <div class="navbar-section navbar-center">
-                <div class="model-selector-compact">
-                    <label for="model-select" class="model-label-compact">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 2L3 5L8 8L13 5L8 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                            <path d="M3 11L8 14L13 11" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                            <path d="M3 8L8 11L13 8" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-                        </svg>
-                        Model
-                        <span class="help-icon" data-tooltip="model-select">
-                            <span class="help-icon-text">?</span>
-                            <span class="help-tooltip">
-                                <strong class="tooltip-heading">Why Multiple Models?</strong>
-                                <p>Each model was trained differently, leading to unique semantic perspectives:</p>
-                                <ul class="tooltip-list">
-                                    <li><strong>MiniLM:</strong> Paraphrase detection specialist</li>
-                                    <li><strong>E5 (Microsoft):</strong> Web-scale contrastive learning</li>
-                                    <li><strong>BGE (BAAI):</strong> Retrieval optimization with distillation</li>
-                                </ul>
-                                <p style="margin-top: 12px; font-style: italic; color: var(--text-muted);">
-                                    Try the same words with different models to see how training affects meaning!
-                                </p>
-                            </span>
-                        </span>
-                    </label>
-                    <select id="model-select" class="model-select-compact">
-                        <option value="minilm">MiniLM - 384D</option>
-                        <option value="e5-small">E5-small - 384D</option>
-                        <option value="bge-small">BGE-small - 384D</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Right: Controls -->
-            <div class="navbar-section navbar-right">
-                <div class="controls-compact">
-                    <button class="control-btn-compact" onclick="resetView()" title="Reset camera view">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M8 2L8 5M8 2L11 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Reset
-                    </button>
-                    <button class="control-btn-compact" onclick="startFresh()" title="Clear all custom vectors">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 4H14M6 4V3C6 2.44772 6.44772 2 7 2H9C9.55228 2 10 2.44772 10 3V4M5 7V12M8 7V12M11 7V12M3 4L4 13C4 13.5523 4.44772 14 5 14H11C11.5523 14 12 13.5523 12 13L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Clear
-                    </button>
-                    <button class="control-btn-compact" onclick="exportVisual()" title="Export as image">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 2V10M8 10L5 7M8 10L11 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M2 11V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        Export
-                    </button>
-                    <button class="control-btn-compact" onclick="toggleIdeasPanel()" title="Get word combination ideas">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 1V3M8 13V15M1 8H3M13 8H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M3.5 3.5L4.5 4.5M11.5 11.5L12.5 12.5M12.5 3.5L11.5 4.5M4.5 11.5L3.5 12.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
-                        </svg>
-                        Need Ideas?
-                    </button>
-                    <a href="/no-magic-required.html" class="control-btn-compact" title="Understanding Vector Space Guide" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 2H4C3.44772 2 3 2.44772 3 3V13C3 13.5523 3.44772 14 4 14H12C12.5523 14 13 13.5523 13 13V6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M6 8H10M6 11H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            <path d="M13 2L9 6M13 2V5M13 2H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Guide
-                    </a>
-                </div>
-            </div>
+        <div class="legend">
+          <h2>Similarity Colors</h2>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #4ade80"></div>
+            <div class="legend-text">High (>0.7) - Very Similar</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #fbbf24"></div>
+            <div class="legend-text">Medium (0.3-0.7) - Somewhat Similar</div>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #f87171"></div>
+            <div class="legend-text">Low (<0.3) - Different</div>
+          </div>
         </div>
+      </div>
 
-        <div class="right-column">
-            <div class="info-panel" id="info-panel">
-                <h3>Select Vectors to Compare</h3>
-                <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.85rem; line-height: 1.5;">
-                    Click on any vector to select it. Click a second vector to see detailed similarity metrics and understand what each metric captures.
+      <div class="top-row">
+        <!-- Left: Add Vector -->
+        <div class="navbar-section navbar-left">
+          <div class="add-vector-compact">
+            <input
+              type="text"
+              id="word-input"
+              placeholder="Add word or phrase..."
+              class="word-input-compact"
+            />
+            <button class="add-btn-compact" onclick="addCustomVector()">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 3V13M3 8H13"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              Add
+            </button>
+            <input
+              type="file"
+              id="batch-file-input"
+              accept=".txt"
+              style="display: none"
+              onchange="handleBatchUpload(event)"
+            />
+            <button
+              class="batch-btn-compact"
+              onclick="document.getElementById('batch-file-input').click()"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 2V10M8 2L5 5M8 2L11 5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M2 10V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V10"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              Batch
+            </button>
+            <span class="help-icon" data-tooltip="add-vector">
+              <span class="help-icon-text">?</span>
+              <span class="help-tooltip">
+                <strong class="tooltip-heading">Need Inspiration?</strong>
+                <p>Try these word combinations to explore semantic relationships:</p>
+                <ul class="tooltip-list">
+                  <li>spark • signal • pattern recognition</li>
+                  <li>neural memory • human error</li>
+                  <li>artificial empathy • ghost</li>
+                  <li>memory leak • machine</li>
+                  <li>lost moment • future nostalgia</li>
+                </ul>
+                <p
+                  style="
+                    margin-top: 12px;
+                    padding-top: 12px;
+                    border-top: 1px solid rgba(74, 222, 128, 0.3);
+                  "
+                >
+                  <strong>Batch Upload:</strong> Upload a .txt file with entries
+                  separated by blank lines (max 50 items)
                 </p>
-            </div>
+              </span>
+            </span>
+          </div>
+          <div id="status-message" class="status-message"></div>
         </div>
+
+        <!-- Center: Model Selector -->
+        <div class="navbar-section navbar-center">
+          <div class="model-selector-compact">
+            <label for="model-select" class="model-label-compact">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 2L3 5L8 8L13 5L8 2Z"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M3 11L8 14L13 11"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M3 8L8 11L13 8"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Model
+              <span class="help-icon" data-tooltip="model-select">
+                <span class="help-icon-text">?</span>
+                <span class="help-tooltip">
+                  <strong class="tooltip-heading">Why Multiple Models?</strong>
+                  <p>
+                    Each model was trained differently, leading to unique semantic
+                    perspectives:
+                  </p>
+                  <ul class="tooltip-list">
+                    <li><strong>MiniLM:</strong> Paraphrase detection specialist</li>
+                    <li>
+                      <strong>E5 (Microsoft):</strong> Web-scale contrastive learning
+                    </li>
+                    <li>
+                      <strong>BGE (BAAI):</strong> Retrieval optimization with
+                      distillation
+                    </li>
+                  </ul>
+                  <p
+                    style="
+                      margin-top: 12px;
+                      font-style: italic;
+                      color: var(--text-muted);
+                    "
+                  >
+                    Try the same words with different models to see how training affects
+                    meaning!
+                  </p>
+                </span>
+              </span>
+            </label>
+            <select id="model-select" class="model-select-compact">
+              <option value="minilm">MiniLM - 384D</option>
+              <option value="e5-small">E5-small - 384D</option>
+              <option value="bge-small">BGE-small - 384D</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Right: Controls -->
+        <div class="navbar-section navbar-right">
+          <div class="controls-compact">
+            <button
+              class="control-btn-compact"
+              onclick="resetView()"
+              title="Reset camera view"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M8 2L8 5M8 2L11 2"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Reset
+            </button>
+            <button
+              class="control-btn-compact"
+              onclick="startFresh()"
+              title="Clear all custom vectors"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M2 4H14M6 4V3C6 2.44772 6.44772 2 7 2H9C9.55228 2 10 2.44772 10 3V4M5 7V12M8 7V12M11 7V12M3 4L4 13C4 13.5523 4.44772 14 5 14H11C11.5523 14 12 13.5523 12 13L13 4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Clear
+            </button>
+            <button
+              class="control-btn-compact"
+              onclick="exportVisual()"
+              title="Export as image"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 2V10M8 10L5 7M8 10L11 7"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M2 11V13C2 13.5523 2.44772 14 3 14H13C13.5523 14 14 13.5523 14 13V11"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              Export
+            </button>
+            <button
+              class="control-btn-compact"
+              onclick="toggleIdeasPanel()"
+              title="Get word combination ideas"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 1V3M8 13V15M1 8H3M13 8H15"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M3.5 3.5L4.5 4.5M11.5 11.5L12.5 12.5M12.5 3.5L11.5 4.5M4.5 11.5L3.5 12.5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5" />
+              </svg>
+              Need Ideas?
+            </button>
+            <a
+              href="/the-more-you-know.html"
+              class="control-btn-compact"
+              title="Understanding Vector Space Guide"
+              style="
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+              "
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M7 2H4C3.44772 2 3 2.44772 3 3V13C3 13.5523 3.44772 14 4 14H12C12.5523 14 13 13.5523 13 13V6"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M6 8H10M6 11H10"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M13 2L9 6M13 2V5M13 2H10"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              The more you know
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-column">
+        <div class="info-panel" id="info-panel">
+          <h3>Select Vectors to Compare</h3>
+          <p
+            style="
+              color: rgba(255, 255, 255, 0.6);
+              font-size: 0.85rem;
+              line-height: 1.5;
+            "
+          >
+            Click on any vector to select it. Click a second vector to see detailed
+            similarity metrics and understand what each metric captures.
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Ideas Panel -->
-    <div id="ideas-panel" class="ideas-panel" style="display: none;">
-        <div class="ideas-panel-content">
-            <div class="ideas-panel-header">
-                <h3>✨ Try These Mind-Bending Combinations</h3>
-                <button class="ideas-close-btn" onclick="toggleIdeasPanel()">×</button>
-            </div>
-
-            <div class="ideas-grid">
-                <div class="idea-category">
-                    <h4>🤯 Paradoxes</h4>
-                    <ul>
-                        <li><strong>love</strong> + <strong>hate</strong> — surprisingly neighbors!</li>
-                        <li><strong>beginning</strong> + <strong>end</strong> — they actually overlap</li>
-                        <li><strong>artificial</strong> + <strong>natural</strong> — paradoxically close</li>
-                        <li><strong>war</strong> + <strong>peace</strong> — shockingly tiny distance</li>
-                    </ul>
-                </div>
-
-                <div class="idea-category">
-                    <h4>🎭 Poetic Pairs</h4>
-                    <ul>
-                        <li><strong>chaos</strong> + <strong>beauty</strong> — vectors might kiss!</li>
-                        <li><strong>genius</strong> + <strong>madness</strong> — dance together</li>
-                        <li><strong>dream</strong> + <strong>reality</strong> — blurred boundaries</li>
-                        <li><strong>silence</strong> + <strong>music</strong> — unexpected harmony</li>
-                    </ul>
-                </div>
-
-                <div class="idea-category">
-                    <h4>🧠 AI Insights</h4>
-                    <ul>
-                        <li><strong>coffee</strong> + <strong>productivity</strong> — closer than coffee + tea!</li>
-                        <li><strong>algorithm</strong> + <strong>intuition</strong> — surprisingly aligned</li>
-                        <li><strong>data</strong> + <strong>wisdom</strong> — the learning gap</li>
-                        <li><strong>neural</strong> + <strong>network</strong> + <strong>brain</strong> — triangle of thought</li>
-                    </ul>
-                </div>
-
-                <div class="idea-category">
-                    <h4>🎨 Creative Clusters</h4>
-                    <ul>
-                        <li><strong>spark</strong> + <strong>signal</strong> + <strong>pattern recognition</strong></li>
-                        <li><strong>memory leak</strong> + <strong>machine</strong> + <strong>ghost</strong></li>
-                        <li><strong>artificial empathy</strong> + <strong>human error</strong></li>
-                        <li><strong>future nostalgia</strong> + <strong>lost moment</strong></li>
-                    </ul>
-                </div>
-
-                <div class="idea-category">
-                    <h4>🔬 Classic Examples</h4>
-                    <ul>
-                        <li><strong>king</strong> - <strong>man</strong> + <strong>woman</strong> = queen!</li>
-                        <li><strong>paris</strong> - <strong>france</strong> + <strong>italy</strong> = rome</li>
-                        <li><strong>hot</strong> + <strong>cold</strong> — temperature spectrum</li>
-                        <li><strong>good</strong> + <strong>bad</strong> + <strong>ugly</strong> — moral triangle</li>
-                    </ul>
-                </div>
-
-                <div class="idea-category">
-                    <h4>🌈 Wild Cards</h4>
-                    <ul>
-                        <li><strong>quantum</strong> + <strong>consciousness</strong> — edge of understanding</li>
-                        <li><strong>infinity</strong> + <strong>zero</strong> — mathematical romance</li>
-                        <li><strong>time</strong> + <strong>space</strong> + <strong>gravity</strong> — Einstein's playground</li>
-                        <li><strong>yesterday</strong> + <strong>tomorrow</strong> — missing today</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="ideas-footer">
-                <p>💡 <strong>Pro tip:</strong> Add multiple words at once to see how they cluster in semantic space!</p>
-            </div>
+    <div id="ideas-panel" class="ideas-panel" style="display: none">
+      <div class="ideas-panel-content">
+        <div class="ideas-panel-header">
+          <h3>✨ Try These Mind-Bending Combinations</h3>
+          <button class="ideas-close-btn" onclick="toggleIdeasPanel()">×</button>
         </div>
+
+        <div class="ideas-grid">
+          <div class="idea-category">
+            <h4>🤯 Paradoxes</h4>
+            <ul>
+              <li>
+                <strong>love</strong> + <strong>hate</strong> — surprisingly neighbors!
+              </li>
+              <li>
+                <strong>beginning</strong> + <strong>end</strong> — they actually
+                overlap
+              </li>
+              <li>
+                <strong>artificial</strong> + <strong>natural</strong> — paradoxically
+                close
+              </li>
+              <li>
+                <strong>war</strong> + <strong>peace</strong> — shockingly tiny distance
+              </li>
+            </ul>
+          </div>
+
+          <div class="idea-category">
+            <h4>🎭 Poetic Pairs</h4>
+            <ul>
+              <li>
+                <strong>chaos</strong> + <strong>beauty</strong> — vectors might kiss!
+              </li>
+              <li>
+                <strong>genius</strong> + <strong>madness</strong> — dance together
+              </li>
+              <li>
+                <strong>dream</strong> + <strong>reality</strong> — blurred boundaries
+              </li>
+              <li>
+                <strong>silence</strong> + <strong>music</strong> — unexpected harmony
+              </li>
+            </ul>
+          </div>
+
+          <div class="idea-category">
+            <h4>🧠 AI Insights</h4>
+            <ul>
+              <li>
+                <strong>coffee</strong> + <strong>productivity</strong> — closer than
+                coffee + tea!
+              </li>
+              <li>
+                <strong>algorithm</strong> + <strong>intuition</strong> — surprisingly
+                aligned
+              </li>
+              <li>
+                <strong>data</strong> + <strong>wisdom</strong> — the learning gap
+              </li>
+              <li>
+                <strong>neural</strong> + <strong>network</strong> +
+                <strong>brain</strong> — triangle of thought
+              </li>
+            </ul>
+          </div>
+
+          <div class="idea-category">
+            <h4>🎨 Creative Clusters</h4>
+            <ul>
+              <li>
+                <strong>spark</strong> + <strong>signal</strong> +
+                <strong>pattern recognition</strong>
+              </li>
+              <li>
+                <strong>memory leak</strong> + <strong>machine</strong> +
+                <strong>ghost</strong>
+              </li>
+              <li>
+                <strong>artificial empathy</strong> + <strong>human error</strong>
+              </li>
+              <li><strong>future nostalgia</strong> + <strong>lost moment</strong></li>
+            </ul>
+          </div>
+
+          <div class="idea-category">
+            <h4>🔬 Classic Examples</h4>
+            <ul>
+              <li>
+                <strong>king</strong> - <strong>man</strong> + <strong>woman</strong> =
+                queen!
+              </li>
+              <li>
+                <strong>paris</strong> - <strong>france</strong> +
+                <strong>italy</strong> = rome
+              </li>
+              <li>
+                <strong>hot</strong> + <strong>cold</strong> — temperature spectrum
+              </li>
+              <li>
+                <strong>good</strong> + <strong>bad</strong> + <strong>ugly</strong> —
+                moral triangle
+              </li>
+            </ul>
+          </div>
+
+          <div class="idea-category">
+            <h4>🌈 Wild Cards</h4>
+            <ul>
+              <li>
+                <strong>quantum</strong> + <strong>consciousness</strong> — edge of
+                understanding
+              </li>
+              <li>
+                <strong>infinity</strong> + <strong>zero</strong> — mathematical romance
+              </li>
+              <li>
+                <strong>time</strong> + <strong>space</strong> +
+                <strong>gravity</strong> — Einstein's playground
+              </li>
+              <li>
+                <strong>yesterday</strong> + <strong>tomorrow</strong> — missing today
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="ideas-footer">
+          <p>
+            💡 <strong>Pro tip:</strong> Add multiple words at once to see how they
+            cluster in semantic space!
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Help Tour Button -->
-    <button class="help-tour-btn" id="help-tour-btn" title="Start Tutorial" aria-label="Start interactive tutorial">
-        ?
+    <button
+      class="help-tour-btn"
+      id="help-tour-btn"
+      title="Start Tutorial"
+      aria-label="Start interactive tutorial"
+    >
+      ?
     </button>
 
     <script type="importmap">
-    {
+      {
         "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-            "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+          "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2"
         }
-    }
+      }
     </script>
 
     <script type="module" src="js/main.js"></script>
-</body>
+  </body>
 </html>

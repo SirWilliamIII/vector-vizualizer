@@ -199,6 +199,20 @@ The application is fully responsive with special handling for screens < 1200px:
   - Previously zoomed in too close (1.5x), making context hard to see
   - Minimum distance increased from 0.7x to 1.2x base minimum
 
+### UI/UX Enhancements
+- **Enhanced input visibility:** Made vector input and search input more prominent with subtle styling
+  - Added green accent border and glow to word input
+  - Added blue accent styling to search container
+  - Maintained design consistency without gaudy effects
+
+- **Comparison mode UI improvements:** When 2 vectors are selected, the interface transforms to highlight the comparison
+  - Search container replaced with comparison summary showing vector names in their actual colors
+  - Color-coded similarity metrics (green/yellow/red) matching the legend
+  - Legend and comparison summary positions swapped (legend on top)
+  - Legend becomes prominent with enhanced border, glow, and larger text
+  - Consistent spacing and styling between legend and comparison boxes
+  - Implemented via `updateSearchContainerForComparison()` in ui.js
+
 ### Code Quality
 - **Removed debug console.log statements:** Cleaned up development debugging output from math-utils.js
   - Retained appropriate error logging in batch-upload.js and StateManager.js
